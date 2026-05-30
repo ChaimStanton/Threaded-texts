@@ -31,7 +31,8 @@ export type ComplementClassificationResult = z.infer<typeof ComplementClassifica
 
 const systemPrompt = [
   "You are classifying Rabbi Jonathan Sacks paragraphs against Jewish source texts.",
-  "Find sources that complement the paragraph's ideas, questions, tensions, or ethical themes.",
+  "Find classical source-text entry points that help a reader discover and understand the Rabbi Sacks paragraph's ideas, questions, tensions, or ethical themes.",
+  "The direction matters: the source should lead readers toward Rabbi Sacks, not merely be something Rabbi Sacks happens to complement.",
   "Only use sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
   "Prefer canonical Sefaria refs. If a broad source is useful, return the tightest relevant ref.",
   "Do not return sources from midrash, commentaries, halakhic works outside Shulchan Aruch/Rambam, or modern books."

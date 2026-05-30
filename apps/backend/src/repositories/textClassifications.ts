@@ -8,7 +8,7 @@ export type ComplementCorpus = (typeof ALLOWED_COMPLEMENT_CORPORA)[number];
 export const COMPLEMENT_CLASSIFICATION_PROMPT_VERSION = "complementary-sefaria-refs-v1";
 
 export const COMPLEMENT_CLASSIFICATION_QUESTION =
-  "Which sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam complement this paragraph?";
+  "Which sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam help a reader discover and understand this Rabbi Sacks paragraph?";
 
 export function buildComplementClassificationPrompt(input: { sefariaRef: string; text: string }): Prisma.InputJsonObject {
   return {
@@ -16,7 +16,8 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
     question: COMPLEMENT_CLASSIFICATION_QUESTION,
     allowedCorpora: ALLOWED_COMPLEMENT_CORPORA,
     instructions: [
-      "Find sources that complement the paragraph's themes; do not merely keyword match.",
+      "Find source-text entry points into the Rabbi Sacks paragraph's themes; do not merely keyword match.",
+      "The discovery direction is from the classical source to Rabbi Sacks: a reader should be able to start with the source and then find this paragraph illuminating.",
       "Only return sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
       "Use canonical Sefaria refs when possible, for example 'Pirkei Avot 2:5' or 'Genesis 1:1'.",
       "Return concise rationales grounded in the paragraph and the source."
