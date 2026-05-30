@@ -1,0 +1,118 @@
+# Rabbi Sacks Sefaria Notes
+
+## Canonical Sefaria Identifier
+
+Use this Sefaria topic/author slug for Rabbi Lord Jonathan Sacks:
+
+```text
+jonathan-sacks
+```
+
+Canonical topic page:
+
+```text
+https://www.sefaria.org/topics/jonathan-sacks
+```
+
+Author works tab:
+
+```text
+https://www.sefaria.org/topics/jonathan-sacks?tab=author-works-on-sefaria
+```
+
+Rabbi Sacks library category:
+
+```text
+https://www.sefaria.org/texts/Jewish%20Thought/Modern/Rabbi%20Lord%20Jonathan%20Sacks
+```
+
+Do not use `rabbi-jonathan-sacks` as the main identifier. It exists as a topic slug, but it appears to be a thin duplicate with no sources. Use `jonathan-sacks`.
+
+## Sefaria MCP Commands
+
+When Sefaria MCP tools are available in Codex, prefer them over ad hoc web scraping.
+
+Useful MCP calls:
+
+```ts
+// Topic/author details for Rabbi Sacks.
+mcp__codex_apps__sefaria_texts._get_topic_details({
+  topic_slug: "jonathan-sacks",
+  with_links: true,
+  with_refs: true
+});
+
+// Get text content for a Sefaria ref.
+mcp__codex_apps__sefaria_texts._get_text({
+  reference: "Genesis 1:1",
+  version_language: "both"
+});
+
+// Get all English translations for a Sefaria ref.
+mcp__codex_apps__sefaria_texts._get_english_translations({
+  reference: "Genesis 1:1"
+});
+
+// Get index/catalogue metadata for a work.
+mcp__codex_apps__sefaria_texts._get_text_catalogue_info({
+  title: "Genesis"
+});
+
+// Get text or category structure.
+mcp__codex_apps__sefaria_texts._get_text_or_category_shape({
+  name: "Rabbi Lord Jonathan Sacks"
+});
+
+// Find links/cross-references for a ref.
+mcp__codex_apps__sefaria_texts._get_links_between_texts({
+  reference: "Genesis 1:1",
+  with_text: "1"
+});
+```
+
+Confirmed MCP topic details for `jonathan-sacks` include:
+
+- Primary English title: `Jonathan Sacks`
+- Primary Hebrew title exists in the Sefaria record.
+- English aliases include `Rabbi Sacks` and `Rabbi Lord Jonothan Sacks`.
+- Hebrew aliases also exist in the Sefaria record.
+
+## Sefaria REST API Notes
+
+The backend is configured with:
+
+```text
+SEFARIA_API_BASE_URL="https://www.sefaria.org/api"
+```
+
+Current backend client:
+
+```text
+apps/backend/src/sefaria/client.ts
+```
+
+Current helper:
+
+```ts
+getSefariaText(ref: string)
+```
+
+It calls:
+
+```text
+GET https://www.sefaria.org/api/texts/{encodedRef}?context=0
+```
+
+Example:
+
+```text
+GET https://www.sefaria.org/api/texts/Genesis%201%3A1?context=0
+```
+
+Project route:
+
+```text
+GET /api/sources/sefaria/:ref
+```
+
+When adding Rabbi Sacks-specific Sefaria support, prefer storing `jonathan-sacks` as a stable topic slug and fetching through backend code so frontend callers do not depend directly on Sefaria API shape.

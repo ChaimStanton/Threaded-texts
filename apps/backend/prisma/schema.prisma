@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SourceNote {
+  id          String   @id @default(cuid())
+  ref         String
+  title       String?
+  text        String?
+  version     String?
+  language    String   @default("en")
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([ref])
+  @@index([deletedAt])
+}
+
+model Author {
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  displayName         String
+  sortName            String?
+  bio                 String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+  books               Book[]
+  rabbiSacksArticles  RabbiSacksArticle[]
+
+  @@index([deletedAt])
+}
+
+model Book {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  title     String
+  heTitle   String?
+  category  String?
+  authorId  String?
+  author    Author?   @relation(fields: [authorId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  chapters  Chapter[]
+  texts     TextUnit[]
+
+  @@index([authorId])
+  @@index([deletedAt])
+}
+
+model Chapter {
+  id          String     @id @default(cuid())
+  bookId      String
+  book        Book       @relation(fields: [bookId], references: [id])
+  /// Dense ordinal for the imported Sefaria leaf/section within a book.
+  number      Int
+  /// Sefaria section ref without the final segment suffix, e.g.
+  /// "Arguments for the Sake of Heaven, PART II; PAST, Chapter 2; A Religion or a Nation?"
+  ref         String
+  title       String?
+  heTitle     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  textUnits   TextUnit[]
+
+  @@unique([bookId, number])
+  @@unique([bookId, ref])
+  @@index([bookId])
+  @@index([deletedAt])
+}
+
+model TextUnit {
+  paragraphId String   @id
+  bookId      String
+  book        Book     @relation(fields: [bookId], references: [id])
+  /// Optional FK to Chapter.id. Sefaria imports should set this so text units can be grouped by section.
+  chapterId   String?
+  chapterRef  Chapter? @relation(fields: [chapterId], references: [id])
+  /// Mirrors Chapter.number for simple ordering/filtering without joining Chapter.
+  chapter     Int
+  /// Actual Sefaria segment number from the ref suffix, e.g. ":10".
+  /// This can differ from paragraph when Sefaria has blank/filtered segments.
+  verse       Int?
+  /// Dense local paragraph ordering after filtering blank/empty text segments.
+  /// Do not treat this as the canonical Sefaria segment number; use verse for that.
+  paragraph   Int
+  /// Full Sefaria segment ref, including the final segment suffix, e.g.
+  /// "Arguments for the Sake of Heaven, PART II; PAST, Chapter 2; A Religion or a Nation?:27"
+  ref         String   @unique
+  text        String
+  language    String   @default("en")
+  version     String?
+  /// Heuristic flag for rows that look like headings, datelines, credits, bibliography, prompts,
+  /// or other auxiliary/non-body content. Keep the row; filter it out only when the caller wants prose.
+  isAuxiliary Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  classificationRuns LlmTextClassification[]
+  sefariaComplements TextSefariaComplement[]
+
+  @@index([bookId])
+  @@index([chapterId])
+  @@index([bookId, chapter, verse, paragraph])
+  @@index([isAuxiliary])
+  @@index([deletedAt])
+  @@map("text")
+}
+
+model SefariaReference {
+  id          String   @id @default(cuid())
+  /// Canonical Sefaria ref returned by the model or Sefaria API, e.g. "Genesis 1:1".
+  ref         String   @unique
+  /// Optional normalized key for de-duping refs that differ only by punctuation/spacing.
+  normalizedRef String?
+  /// Allowed source corpus: tanach, gemara, mishna, shulchan_aruch, or rambam.
+  corpus      String
+  book        String?
+  category    String?
+  url         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  textComplements TextSefariaComplement[]
+
+  @@index([corpus])
+  @@index([book])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+model LlmTextClassification {
+  id          String   @id @default(cuid())
+  paragraphId String
+  textUnit    TextUnit @relation(fields: [paragraphId], references: [paragraphId])
+  /// Provider/model fields stay separate so runs can be compared across frontier models.
+  provider    String
+  model       String
+  promptVersion String
+  /// The actual question/instructions sent to the model.
+  prompt      Json
+  /// Full request payload sent to the LLM provider.
+  request     Json
+  /// Full parsed response payload from the LLM provider.
+  response    Json?
+  responseText String?
+  status      String   @default("pending")
+  error       String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  sefariaComplements TextSefariaComplement[]
+
+  @@index([paragraphId])
+  @@index([provider, model])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model TextSefariaComplement {
+  id          String   @id @default(cuid())
+  paragraphId String
+  textUnit    TextUnit @relation(fields: [paragraphId], references: [paragraphId])
+  sefariaReferenceId String
+  sefariaReference   SefariaReference @relation(fields: [sefariaReferenceId], references: [id])
+  classificationRunId String?
+  classificationRun   LlmTextClassification? @relation(fields: [classificationRunId], references: [id])
+  /// Short topic label for why this Sefaria ref complements the paragraph.
+  topic       String?
+  rationale   String?
+  confidence  Float?
+  rank        Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([paragraphId, sefariaReferenceId, classificationRunId])
+  @@index([paragraphId])
+  @@index([sefariaReferenceId])
+  @@index([classificationRunId])
+  @@index([deletedAt])
+}
+
+model RabbiSacksArticle {
+  id          String    @id @default(cuid())
+  authorId    String
+  author      Author    @relation(fields: [authorId], references: [id])
+  sourceUrl   String    @unique
+  title       String
+  body        String
+  excerpt     String?
+  publishedAt DateTime?
+  scrapedAt   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([authorId])
+  @@index([sourceUrl])
+  @@index([deletedAt])
+}

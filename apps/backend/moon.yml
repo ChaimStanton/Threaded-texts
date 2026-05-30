@@ -1,0 +1,20 @@
+id: backend
+layer: application
+language: typescript
+
+tasks:
+  dev:
+    command: npm run dev
+  build:
+    command: npm run build
+    inputs:
+      - src/**/*
+      - prisma/schema.prisma
+      - package.json
+      - tsconfig.json
+    outputs:
+      - dist
+  prisma-generate:
+    command: npm run prisma:generate
+    inputs:
+      - prisma/schema.prisma

@@ -1,0 +1,7 @@
+vcs:
+  client: git
+  defaultBranch: main
+
+projects:
+  backend: apps/backend
+  frontend: apps/frontend
