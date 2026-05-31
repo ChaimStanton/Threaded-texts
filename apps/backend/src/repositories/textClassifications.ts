@@ -25,10 +25,14 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
     outputSchema: {
       complements: [
         {
-          ref: "string",
+          ref: "string, canonical Sefaria ref",
           corpus: "tanach | gemara | mishna | shulchan_aruch | rambam",
-          topic: "string",
-          rationale: "string",
+          normalizedRef: "string or null",
+          book: "string or null",
+          category: "string or null",
+          url: "string or null",
+          topic: "string or null",
+          rationale: "string or null",
           confidence: "number from 0 to 1",
           rank: "integer, 1 is best"
         }

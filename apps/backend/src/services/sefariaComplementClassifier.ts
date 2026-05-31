@@ -37,6 +37,7 @@ type ModelPricing = {
 const pricingByModel: Record<string, ModelPricing> = {
   "gpt-5.2": { inputUsdPerMillion: 1.75, outputUsdPerMillion: 14 },
   "gpt-5.4": { inputUsdPerMillion: 2.5, outputUsdPerMillion: 15 },
+  "gpt-5.4-pro": { inputUsdPerMillion: 30, outputUsdPerMillion: 180 },
   "gpt-5.4-mini": { inputUsdPerMillion: 0.75, outputUsdPerMillion: 4.5 }
 };
 
@@ -62,6 +63,17 @@ function estimateCostUsd(input: { model: string; inputTokens?: number; outputTok
   );
 }
 
+function parseJsonObject(value: string) {
+  const trimmed = value.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+
+  return JSON.parse(fenced ? fenced[1] : trimmed);
+}
+
+function supportsStructuredOutputs(model: string) {
+  return model !== "gpt-5.4-pro";
+}
+
 export async function classifySefariaComplements(input: {
   paragraphId: string;
   sefariaRef: string;
@@ -84,22 +96,39 @@ export async function classifySefariaComplements(input: {
     model,
     instructions: systemPrompt,
     input: JSON.stringify(prompt),
+    service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
+    prompt_cache_key: "sefaria-complement-classification-v1",
+    prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+    reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+    max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
     text: {
-      format: "sefaria_complement_classification"
+      format: supportsStructuredOutputs(model) ? "sefaria_complement_classification" : "plain_json"
     }
   };
 
   try {
-    const response = await openai.responses.create({
+    const responseOptions = {
       model,
       instructions: systemPrompt,
       input: JSON.stringify(prompt),
-      text: {
-        format: zodTextFormat(ComplementClassificationSchema, "sefaria_complement_classification")
-      },
+      service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
+      prompt_cache_key: "sefaria-complement-classification-v1",
+      prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+      reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+      max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
       temperature: 0.1
-    });
-    const parsed = ComplementClassificationSchema.parse(JSON.parse(response.output_text));
+    } as const;
+    const response = await openai.responses.create(
+      supportsStructuredOutputs(model)
+        ? {
+            ...responseOptions,
+            text: {
+              format: zodTextFormat(ComplementClassificationSchema, "sefaria_complement_classification")
+            }
+          }
+        : responseOptions
+    );
+    const parsed = ComplementClassificationSchema.parse(parseJsonObject(response.output_text));
     const inputTokens = response.usage?.input_tokens;
     const outputTokens = response.usage?.output_tokens;
     const estimatedCostUsd = estimateCostUsd({ model, inputTokens, outputTokens });
@@ -158,7 +187,12 @@ export function buildDryRunComplementClassificationRequest(input: { sefariaRef: 
     model,
     promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
     instructions: systemPrompt,
+    serviceTier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
+    promptCacheKey: "sefaria-complement-classification-v1",
+    promptCacheRetention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+    reasoningEffort: env.OPENAI_COMPLEMENT_REASONING_EFFORT,
+    maxOutputTokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
     prompt,
-    outputSchema: "ComplementClassificationSchema"
+    outputSchema: supportsStructuredOutputs(model) ? "ComplementClassificationSchema" : "plain JSON parsed locally"
   };
 }
