@@ -74,6 +74,19 @@ function supportsStructuredOutputs(model: string) {
   return model !== "gpt-5.4-pro";
 }
 
+function supportsTemperature(model: string) {
+  return !model.startsWith("gpt-5.4");
+}
+
+function isUsableComplement(complement: ComplementClassificationResult["complements"][number]) {
+  return (
+    !complement.ref.includes("?") &&
+    complement.confidence !== null &&
+    complement.confidence > 0 &&
+    complement.rank !== null
+  );
+}
+
 export async function classifySefariaComplements(input: {
   paragraphId: string;
   sefariaRef: string;
@@ -116,7 +129,7 @@ export async function classifySefariaComplements(input: {
       prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
       reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
       max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
-      temperature: 0.1
+      ...(supportsTemperature(model) ? { temperature: 0.1 } : {})
     } as const;
     const response = await openai.responses.create(
       supportsStructuredOutputs(model)
@@ -128,10 +141,35 @@ export async function classifySefariaComplements(input: {
           }
         : responseOptions
     );
-    const parsed = ComplementClassificationSchema.parse(parseJsonObject(response.output_text));
     const inputTokens = response.usage?.input_tokens;
     const outputTokens = response.usage?.output_tokens;
     const estimatedCostUsd = estimateCostUsd({ model, inputTokens, outputTokens });
+    let parsed: ComplementClassificationResult;
+
+    try {
+      parsed = ComplementClassificationSchema.parse(parseJsonObject(response.output_text));
+    } catch (error) {
+      return recordLlmTextClassification({
+        paragraphId: input.paragraphId,
+        provider: "openai",
+        model,
+        promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+        prompt,
+        request,
+        response: response as unknown as Prisma.InputJsonValue,
+        responseText: response.output_text,
+        providerRequestId: response.id,
+        inputTokens,
+        cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
+        outputTokens,
+        reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
+        totalTokens: response.usage?.total_tokens,
+        estimatedCostUsd,
+        status: "failed",
+        error: error instanceof Error ? `Failed to parse model JSON: ${error.message}` : String(error),
+        completedAt: new Date()
+      });
+    }
 
     return recordLlmTextClassification({
       paragraphId: input.paragraphId,
@@ -149,7 +187,7 @@ export async function classifySefariaComplements(input: {
       reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
       totalTokens: response.usage?.total_tokens,
       estimatedCostUsd,
-      complements: parsed.complements.map((complement) => ({
+      complements: parsed.complements.filter(isUsableComplement).map((complement) => ({
         ref: complement.ref,
         corpus: complement.corpus,
         normalizedRef: complement.normalizedRef ?? undefined,

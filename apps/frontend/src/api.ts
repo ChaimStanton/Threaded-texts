@@ -63,6 +63,44 @@ export type SourceNote = {
   updatedAt: string;
 };
 
+export type ComplementCorpus = "tanach" | "gemara" | "mishna" | "shulchan_aruch" | "rambam";
+
+export type SourceConnectionPassage = {
+  id: string;
+  paragraphId: string;
+  topic?: string;
+  rationale?: string;
+  confidence?: number;
+  rank?: number;
+  rabbiSacksRef: string;
+  rabbiSacksUrl: string;
+  text: string;
+  book: {
+    id: string;
+    slug: string;
+    title: string;
+    category?: string;
+  };
+  chapter: {
+    id: string;
+    number: number;
+    ref: string;
+    title?: string;
+  } | null;
+};
+
+export type SourceConnection = {
+  id: string;
+  ref: string;
+  normalizedRef?: string;
+  corpus: ComplementCorpus;
+  book?: string;
+  category?: string;
+  url?: string;
+  connectionCount: number;
+  passages: SourceConnectionPassage[];
+};
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
 
@@ -188,4 +226,28 @@ export async function createSourceNote(input: {
     body: JSON.stringify(input)
   });
   return data.note;
+}
+
+export async function fetchSourceConnections(input: {
+  query?: string;
+  corpus?: ComplementCorpus | "all";
+  limit?: number;
+} = {}): Promise<SourceConnection[]> {
+  const params = new URLSearchParams();
+
+  if (input.query) {
+    params.set("q", input.query);
+  }
+
+  if (input.corpus && input.corpus !== "all") {
+    params.set("corpus", input.corpus);
+  }
+
+  if (input.limit) {
+    params.set("limit", String(input.limit));
+  }
+
+  const query = params.toString();
+  const data = await requestJson<{ sources: SourceConnection[] }>(`/api/sources/connections${query ? `?${query}` : ""}`);
+  return data.sources;
 }

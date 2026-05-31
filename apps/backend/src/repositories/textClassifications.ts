@@ -22,6 +22,7 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
       "Use canonical Sefaria refs when possible, for example 'Pirkei Avot 2:5' or 'Genesis 1:1'.",
       "Return concise rationales grounded in the paragraph and the source."
     ],
+    responseFormat: "Return only a valid JSON object matching outputSchema. Do not wrap it in markdown.",
     outputSchema: {
       complements: [
         {
@@ -185,5 +186,68 @@ export async function listTextSefariaComplements(paragraphId: string) {
       classificationRun: true
     },
     orderBy: [{ rank: "asc" }, { createdAt: "asc" }]
+  });
+}
+
+export async function listSefariaReferenceConnections(input: {
+  query?: string;
+  corpus?: ComplementCorpus;
+  limit?: number;
+}) {
+  const trimmedQuery = input.query?.trim();
+
+  return prisma.sefariaReference.findMany({
+    where: {
+      deletedAt: null,
+      corpus: input.corpus,
+      ...(trimmedQuery
+        ? {
+            OR: [
+              { ref: { contains: trimmedQuery } },
+              { normalizedRef: { contains: trimmedQuery } },
+              { book: { contains: trimmedQuery } },
+              { category: { contains: trimmedQuery } },
+              {
+                textComplements: {
+                  some: {
+                    deletedAt: null,
+                    OR: [{ topic: { contains: trimmedQuery } }, { rationale: { contains: trimmedQuery } }]
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    },
+    include: {
+      _count: {
+        select: {
+          textComplements: {
+            where: {
+              deletedAt: null,
+              textUnit: { deletedAt: null, isAuxiliary: false }
+            }
+          }
+        }
+      },
+      textComplements: {
+        where: {
+          deletedAt: null,
+          textUnit: { deletedAt: null, isAuxiliary: false }
+        },
+        include: {
+          textUnit: {
+            include: {
+              book: true,
+              chapterRef: true
+            }
+          }
+        },
+        orderBy: [{ rank: "asc" }, { confidence: "desc" }, { createdAt: "asc" }],
+        take: 6
+      }
+    },
+    orderBy: [{ ref: "asc" }],
+    take: input.limit ?? 50
   });
 }
