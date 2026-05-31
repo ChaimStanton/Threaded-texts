@@ -67,6 +67,8 @@ model Chapter {
   ref         String
   title       String?
   heTitle     String?
+  /// Heuristic flag for front/back matter or educational apparatus sections that are not the main body.
+  isNonMainText Boolean  @default(false)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
@@ -75,6 +77,7 @@ model Chapter {
   @@unique([bookId, number])
   @@unique([bookId, ref])
   @@index([bookId])
+  @@index([isNonMainText])
   @@index([deletedAt])
 }
 

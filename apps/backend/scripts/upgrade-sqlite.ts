@@ -42,6 +42,7 @@ db.exec(`
     "ref" TEXT NOT NULL,
     "title" TEXT,
     "heTitle" TEXT,
+    "isNonMainText" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "deletedAt" DATETIME,
@@ -55,6 +56,10 @@ if (!hasColumn("text", "chapterId")) {
 
 if (!hasColumn("text", "isAuxiliary")) {
   db.exec(`ALTER TABLE "text" ADD COLUMN "isAuxiliary" BOOLEAN NOT NULL DEFAULT false;`);
+}
+
+if (!hasColumn("Chapter", "isNonMainText")) {
+  db.exec(`ALTER TABLE "Chapter" ADD COLUMN "isNonMainText" BOOLEAN NOT NULL DEFAULT false;`);
 }
 
 if (!hasForeignKey("text", "chapterId", "Chapter", "id")) {
@@ -253,11 +258,41 @@ for (const [column, type] of llmUsageColumns) {
 }
 
 db.exec(`
+  UPDATE "Chapter"
+  SET "isNonMainText" = CASE
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'chapter %' THEN false
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'preface%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'publisher''s preface%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'publishers preface%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'author''s preface%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'authors preface%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'introduction%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'acknowledg%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'dedication%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'contents%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'appendix%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'note%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'bibliography%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'suggestion% for further reading%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'further reading%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'glossary%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'index%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'a quick quiz%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'quick quiz%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'top ten%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'educational companion%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'hanukka challenge%' THEN true
+    WHEN lower(coalesce("title", "ref", '')) LIKE 'fun fact%' THEN true
+    ELSE false
+  END
+  WHERE "deletedAt" IS NULL;
+
   CREATE UNIQUE INDEX IF NOT EXISTS "text_ref_key" ON "text"("ref");
   CREATE INDEX IF NOT EXISTS "text_bookId_idx" ON "text"("bookId");
   CREATE UNIQUE INDEX IF NOT EXISTS "Chapter_bookId_number_key" ON "Chapter"("bookId", "number");
   CREATE UNIQUE INDEX IF NOT EXISTS "Chapter_bookId_ref_key" ON "Chapter"("bookId", "ref");
   CREATE INDEX IF NOT EXISTS "Chapter_bookId_idx" ON "Chapter"("bookId");
+  CREATE INDEX IF NOT EXISTS "Chapter_isNonMainText_idx" ON "Chapter"("isNonMainText");
   CREATE INDEX IF NOT EXISTS "Chapter_deletedAt_idx" ON "Chapter"("deletedAt");
   CREATE INDEX IF NOT EXISTS "text_bookId_chapter_verse_paragraph_idx" ON "text"("bookId", "chapter", "verse", "paragraph");
   CREATE INDEX IF NOT EXISTS "text_isAuxiliary_idx" ON "text"("isAuxiliary");
@@ -281,6 +316,7 @@ db.exec(`
 
 db.exec(`
   DROP VIEW IF EXISTS "AuxiliaryTextReview";
+  DROP VIEW IF EXISTS "NonMainTextReview";
   DROP VIEW IF EXISTS "PrimaryEnglishText";
   DROP VIEW IF EXISTS "TextTanachComplementReview";
   DROP VIEW IF EXISTS "TextSefariaComplementReview";
@@ -294,6 +330,8 @@ db.exec(`
       t."chapterId",
       c."number" AS "chapterNumber",
       c."ref" AS "chapterRef",
+      c."title" AS "chapterTitle",
+      c."isNonMainText",
       t."chapter",
       t."verse",
       t."paragraph",
@@ -310,6 +348,36 @@ db.exec(`
   WHERE t."isAuxiliary" = true
     AND t."deletedAt" IS NULL;
 
+  CREATE VIEW "NonMainTextReview" AS
+  SELECT
+      t."paragraphId",
+      t."ref",
+      t."bookId",
+      b."title" AS "bookTitle",
+      t."chapterId",
+      c."number" AS "chapterNumber",
+      c."ref" AS "chapterRef",
+      c."title" AS "chapterTitle",
+      c."isNonMainText",
+      t."isAuxiliary",
+      t."chapter",
+      t."verse",
+      t."paragraph",
+      t."language",
+      'https://www.sefaria.org/' || replace(replace(t."ref", ' ', '_'), ':', '.') || '?lang=bi' AS "sefariaUrl",
+      length(t."text") AS "textLength",
+      substr(replace(replace(replace(t."text", char(10), ' '), char(13), ' '), char(9), ' '), 1, 240) AS "preview",
+      t."text",
+      t."createdAt",
+      t."updatedAt"
+  FROM "text" t
+  JOIN "Book" b ON b."id" = t."bookId"
+  JOIN "Chapter" c ON c."id" = t."chapterId"
+  WHERE c."isNonMainText" = true
+    AND t."deletedAt" IS NULL
+    AND c."deletedAt" IS NULL
+    AND b."deletedAt" IS NULL;
+
   CREATE VIEW "PrimaryEnglishText" AS
   SELECT
       t."paragraphId",
@@ -320,6 +388,8 @@ db.exec(`
       t."chapterId",
       c."number" AS "chapterNumber",
       c."ref" AS "chapterRef",
+      c."title" AS "chapterTitle",
+      c."isNonMainText",
       t."chapter",
       t."verse",
       t."paragraph",
@@ -336,7 +406,7 @@ db.exec(`
     AND t."deletedAt" IS NULL
     AND t."language" = 'en'
     AND b."deletedAt" IS NULL
-    AND (c."id" IS NULL OR c."deletedAt" IS NULL);
+    AND (c."id" IS NULL OR (c."deletedAt" IS NULL AND c."isNonMainText" = false));
 
   CREATE VIEW "TextSefariaComplementReview" AS
   SELECT
@@ -344,6 +414,8 @@ db.exec(`
       tc."paragraphId",
       t."ref" AS "paragraphRef",
       b."title" AS "bookTitle",
+      c."title" AS "chapterTitle",
+      c."isNonMainText",
       t."chapter",
       t."verse",
       t."paragraph",
@@ -374,6 +446,7 @@ db.exec(`
   FROM "TextSefariaComplement" tc
   JOIN "text" t ON t."paragraphId" = tc."paragraphId"
   JOIN "Book" b ON b."id" = t."bookId"
+  LEFT JOIN "Chapter" c ON c."id" = t."chapterId"
   JOIN "SefariaReference" sr ON sr."id" = tc."sefariaReferenceId"
   LEFT JOIN "LlmTextClassification" lc ON lc."id" = tc."classificationRunId"
   WHERE tc."deletedAt" IS NULL

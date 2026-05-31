@@ -28,7 +28,7 @@ const rows = await prisma.textUnit.findMany({
     isAuxiliary: false,
     deletedAt: null,
     book: { deletedAt: null },
-    chapterRef: { deletedAt: null },
+    chapterRef: { deletedAt: null, isNonMainText: false },
     classificationRuns: {
       none: {
         deletedAt: null,

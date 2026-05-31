@@ -28,7 +28,8 @@ const upsertChapterSchema = z.object({
   number: z.coerce.number().int().positive(),
   ref: z.string().min(1),
   title: z.string().optional(),
-  heTitle: z.string().optional()
+  heTitle: z.string().optional(),
+  isNonMainText: z.boolean().optional()
 });
 
 export const textsRouter = Router();

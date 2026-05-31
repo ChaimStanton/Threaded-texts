@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
+import { isNonMainTextSection } from "../text/nonMainText.js";
 
 const activeBookWhere = {
   deletedAt: null
@@ -54,7 +55,10 @@ export async function upsertChapter(input: {
   ref: string;
   title?: string;
   heTitle?: string;
+  isNonMainText?: boolean;
 }) {
+  const isNonMainText = input.isNonMainText ?? isNonMainTextSection(input);
+
   return prisma.chapter.upsert({
     where: {
       bookId_number: {
@@ -62,9 +66,13 @@ export async function upsertChapter(input: {
         number: input.number
       }
     },
-    create: input,
+    create: {
+      ...input,
+      isNonMainText
+    },
     update: {
       ...input,
+      isNonMainText,
       deletedAt: null
     }
   });

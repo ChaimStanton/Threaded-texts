@@ -1,4 +1,5 @@
 import { Book, PrismaClient } from "@prisma/client";
+import { isNonMainTextSection } from "../src/text/nonMainText.js";
 
 type TocNode = {
   category?: string;
@@ -189,12 +190,14 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
       number: leafIndex,
       ref: data.ref || leaf.ref,
       title: leaf.title,
-      heTitle: leaf.heTitle
+      heTitle: leaf.heTitle,
+      isNonMainText: isNonMainTextSection({ title: leaf.title, ref: data.ref || leaf.ref })
     },
     update: {
       ref: data.ref || leaf.ref,
       title: leaf.title,
       heTitle: leaf.heTitle,
+      isNonMainText: isNonMainTextSection({ title: leaf.title, ref: data.ref || leaf.ref }),
       deletedAt: null
     }
   });
