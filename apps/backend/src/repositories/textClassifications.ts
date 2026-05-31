@@ -179,7 +179,12 @@ export async function listTextSefariaComplements(paragraphId: string) {
     where: {
       paragraphId,
       deletedAt: null,
-      sefariaReference: { deletedAt: null }
+      sefariaReference: { deletedAt: null },
+      textUnit: {
+        deletedAt: null,
+        isAuxiliary: false,
+        chapterRef: { deletedAt: null, isNonMainText: false }
+      }
     },
     include: {
       sefariaReference: true,
@@ -211,6 +216,11 @@ export async function listSefariaReferenceConnections(input: {
                 textComplements: {
                   some: {
                     deletedAt: null,
+                    textUnit: {
+                      deletedAt: null,
+                      isAuxiliary: false,
+                      chapterRef: { deletedAt: null, isNonMainText: false }
+                    },
                     OR: [{ topic: { contains: trimmedQuery } }, { rationale: { contains: trimmedQuery } }]
                   }
                 }
@@ -225,7 +235,11 @@ export async function listSefariaReferenceConnections(input: {
           textComplements: {
             where: {
               deletedAt: null,
-              textUnit: { deletedAt: null, isAuxiliary: false }
+              textUnit: {
+                deletedAt: null,
+                isAuxiliary: false,
+                chapterRef: { deletedAt: null, isNonMainText: false }
+              }
             }
           }
         }
@@ -233,7 +247,11 @@ export async function listSefariaReferenceConnections(input: {
       textComplements: {
         where: {
           deletedAt: null,
-          textUnit: { deletedAt: null, isAuxiliary: false }
+          textUnit: {
+            deletedAt: null,
+            isAuxiliary: false,
+            chapterRef: { deletedAt: null, isNonMainText: false }
+          }
         },
         include: {
           textUnit: {
