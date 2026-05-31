@@ -304,6 +304,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS "SefariaReference_category_idx" ON "SefariaReference"("category");
   CREATE INDEX IF NOT EXISTS "SefariaReference_deletedAt_idx" ON "SefariaReference"("deletedAt");
   CREATE INDEX IF NOT EXISTS "LlmTextClassification_paragraphId_idx" ON "LlmTextClassification"("paragraphId");
+  CREATE INDEX IF NOT EXISTS "LlmTextClassification_paragraphId_promptVersion_provider_model_status_idx" ON "LlmTextClassification"("paragraphId", "promptVersion", "provider", "model", "status");
+  CREATE UNIQUE INDEX IF NOT EXISTS "LlmTextClassification_active_completed_once_key" ON "LlmTextClassification"("paragraphId", "promptVersion", "provider", "model") WHERE "deletedAt" IS NULL AND "status" = 'completed';
+  CREATE UNIQUE INDEX IF NOT EXISTS "LlmTextClassification_active_pending_once_key" ON "LlmTextClassification"("paragraphId", "promptVersion", "provider", "model") WHERE "deletedAt" IS NULL AND "status" = 'pending';
   CREATE INDEX IF NOT EXISTS "LlmTextClassification_provider_model_idx" ON "LlmTextClassification"("provider", "model");
   CREATE INDEX IF NOT EXISTS "LlmTextClassification_status_idx" ON "LlmTextClassification"("status");
   CREATE INDEX IF NOT EXISTS "LlmTextClassification_deletedAt_idx" ON "LlmTextClassification"("deletedAt");

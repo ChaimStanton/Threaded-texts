@@ -172,6 +172,7 @@ model LlmTextClassification {
   sefariaComplements TextSefariaComplement[]
 
   @@index([paragraphId])
+  @@index([paragraphId, promptVersion, provider, model, status])
   @@index([provider, model])
   @@index([status])
   @@index([deletedAt])

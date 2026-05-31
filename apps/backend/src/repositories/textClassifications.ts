@@ -89,6 +89,30 @@ function assertAllowedCorpus(corpus: string): asserts corpus is ComplementCorpus
 
 export async function recordLlmTextClassification(input: RecordLlmTextClassificationInput) {
   return prisma.$transaction(async (tx) => {
+    if ((input.status ?? "completed") === "completed") {
+      const existingClassificationRun = await tx.llmTextClassification.findFirst({
+        where: {
+          paragraphId: input.paragraphId,
+          provider: input.provider,
+          model: input.model,
+          promptVersion: input.promptVersion,
+          status: "completed",
+          deletedAt: null
+        },
+        include: {
+          sefariaComplements: {
+            where: { deletedAt: null },
+            include: { sefariaReference: true },
+            orderBy: [{ rank: "asc" }, { createdAt: "asc" }]
+          }
+        }
+      });
+
+      if (existingClassificationRun) {
+        return existingClassificationRun;
+      }
+    }
+
     const classificationRun = await tx.llmTextClassification.create({
       data: {
         paragraphId: input.paragraphId,
