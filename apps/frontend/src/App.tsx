@@ -11,8 +11,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Container,
   Divider,
+  FormControlLabel,
   FormControl,
   IconButton,
   InputAdornment,
@@ -23,14 +25,16 @@ import {
   MenuItem,
   Paper,
   Select,
+  Slider,
   Stack,
+  Switch,
   TextField,
   Toolbar,
   Tooltip,
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { ComplementCorpus, SourceConnection, fetchSourceConnections } from "./api";
+import { ComplementCorpus, SefariaText, SourceConnection, fetchSefariaText, fetchSourceConnections } from "./api";
 
 type CorpusFilter = ComplementCorpus | "all";
 
@@ -56,6 +60,7 @@ export function App() {
   const [selectedSourceId, setSelectedSourceId] = useState("");
   const [query, setQuery] = useState("");
   const [corpus, setCorpus] = useState<CorpusFilter>("all");
+  const [minConfidence, setMinConfidence] = useState(0.75);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +74,7 @@ export function App() {
     setError(null);
 
     try {
-      const nextSources = await fetchSourceConnections({ query, corpus, limit: 100 });
+      const nextSources = await fetchSourceConnections({ query, corpus, minConfidence, limit: 100 });
       setSources(nextSources);
       setSelectedSourceId((current) =>
         current && nextSources.some((source) => source.id === current) ? current : nextSources[0]?.id ?? ""
@@ -165,6 +170,31 @@ export function App() {
                     Apply
                   </Button>
                 </Stack>
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Minimum confidence
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {Math.round(minConfidence * 100)}%
+                    </Typography>
+                  </Stack>
+                  <Slider
+                    aria-label="Minimum confidence"
+                    value={minConfidence}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    marks={[
+                      { value: 0, label: "0%" },
+                      { value: 0.75, label: "75%" },
+                      { value: 1, label: "100%" }
+                    ]}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
+                    onChange={(_, value) => setMinConfidence(Array.isArray(value) ? value[0] : value)}
+                  />
+                </Box>
               </Stack>
             </Box>
 
@@ -234,6 +264,7 @@ export function App() {
 
 function SourceDetail({ source }: { source: SourceConnection }) {
   const sourceUrl = source.url || buildSefariaUrl(source.ref);
+  const [showSourceText, setShowSourceText] = useState(false);
 
   return (
     <Stack spacing={3}>
@@ -261,6 +292,21 @@ function SourceDetail({ source }: { source: SourceConnection }) {
               Open Source
             </Button>
           </Stack>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showSourceText}
+                onChange={(event) => setShowSourceText(event.target.checked)}
+                inputProps={{ "aria-label": "Show source text" }}
+              />
+            }
+            label="Show source text"
+          />
+
+          <Collapse in={showSourceText} unmountOnExit>
+            <SourceTextPanel refText={source.ref} />
+          </Collapse>
 
           <Divider />
 
@@ -330,11 +376,98 @@ function SourceDetail({ source }: { source: SourceConnection }) {
                     <Chip label={`${Math.round(passage.confidence * 100)}% match`} size="small" variant="outlined" />
                   ) : null}
                 </Stack>
+
+                {passage.generatedBy ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Added with {passage.generatedBy.model} · {passage.generatedBy.promptVersion}
+                    {typeof passage.generatedBy.totalTokens === "number" ? ` · ${passage.generatedBy.totalTokens} tokens` : ""}
+                    {typeof passage.generatedBy.estimatedCostUsd === "number"
+                      ? ` · $${passage.generatedBy.estimatedCostUsd.toFixed(4)}`
+                      : ""}
+                  </Typography>
+                ) : null}
               </Stack>
             </Paper>
           ))
         )}
       </Stack>
+    </Stack>
+  );
+}
+
+function SourceTextPanel({ refText }: { refText: string }) {
+  const [sourceText, setSourceText] = useState<SefariaText | null>(null);
+  const [loadingText, setLoadingText] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    setLoadingText(true);
+    setTextError(null);
+    setSourceText(null);
+
+    fetchSefariaText(refText)
+      .then((text) => {
+        if (!ignore) {
+          setSourceText(text);
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setTextError(error instanceof Error ? error.message : "Unable to load Sefaria text");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoadingText(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [refText]);
+
+  return (
+    <Paper elevation={0} sx={{ border: 1, borderColor: "divider", bgcolor: "grey.50", p: 2 }}>
+      {loadingText ? (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <CircularProgress size={18} />
+          <Typography variant="body2" color="text.secondary">
+            Loading source text
+          </Typography>
+        </Stack>
+      ) : textError ? (
+        <Alert severity="warning">{textError}</Alert>
+      ) : sourceText ? (
+        <Stack spacing={1.5}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {sourceText.ref}
+          </Typography>
+          <SourceTextBlock value={sourceText.text} />
+        </Stack>
+      ) : null}
+    </Paper>
+  );
+}
+
+function SourceTextBlock({ value }: { value?: string | string[] }) {
+  const items = Array.isArray(value) ? value : value ? [value] : [];
+
+  if (items.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No English source text was returned for this ref.
+      </Typography>
+    );
+  }
+
+  return (
+    <Stack spacing={1}>
+      {items.map((item, index) => (
+        <Typography key={`${index}-${item.slice(0, 24)}`} variant="body1" sx={{ lineHeight: 1.75 }} dangerouslySetInnerHTML={{ __html: item }} />
+      ))}
     </Stack>
   );
 }

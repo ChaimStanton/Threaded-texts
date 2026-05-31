@@ -221,14 +221,27 @@ export async function listTextSefariaComplements(paragraphId: string) {
 export async function listSefariaReferenceConnections(input: {
   query?: string;
   corpus?: ComplementCorpus;
+  minConfidence?: number;
   limit?: number;
 }) {
   const trimmedQuery = input.query?.trim();
+  const complementWhere = {
+    deletedAt: null,
+    confidence: input.minConfidence === undefined ? undefined : { gte: input.minConfidence },
+    textUnit: {
+      deletedAt: null,
+      isAuxiliary: false,
+      chapterRef: { deletedAt: null, isNonMainText: false }
+    }
+  } satisfies Prisma.TextSefariaComplementWhereInput;
 
   return prisma.sefariaReference.findMany({
     where: {
       deletedAt: null,
       corpus: input.corpus,
+      textComplements: {
+        some: complementWhere
+      },
       ...(trimmedQuery
         ? {
             OR: [
@@ -239,12 +252,7 @@ export async function listSefariaReferenceConnections(input: {
               {
                 textComplements: {
                   some: {
-                    deletedAt: null,
-                    textUnit: {
-                      deletedAt: null,
-                      isAuxiliary: false,
-                      chapterRef: { deletedAt: null, isNonMainText: false }
-                    },
+                    ...complementWhere,
                     OR: [{ topic: { contains: trimmedQuery } }, { rationale: { contains: trimmedQuery } }]
                   }
                 }
@@ -257,27 +265,14 @@ export async function listSefariaReferenceConnections(input: {
       _count: {
         select: {
           textComplements: {
-            where: {
-              deletedAt: null,
-              textUnit: {
-                deletedAt: null,
-                isAuxiliary: false,
-                chapterRef: { deletedAt: null, isNonMainText: false }
-              }
-            }
+            where: complementWhere
           }
         }
       },
       textComplements: {
-        where: {
-          deletedAt: null,
-          textUnit: {
-            deletedAt: null,
-            isAuxiliary: false,
-            chapterRef: { deletedAt: null, isNonMainText: false }
-          }
-        },
+        where: complementWhere,
         include: {
+          classificationRun: true,
           textUnit: {
             include: {
               book: true,

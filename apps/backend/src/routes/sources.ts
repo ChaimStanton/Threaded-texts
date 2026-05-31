@@ -16,6 +16,7 @@ const createSourceNoteSchema = z.object({
 const sourceConnectionsQuerySchema = z.object({
   q: z.string().optional(),
   corpus: z.enum(ALLOWED_COMPLEMENT_CORPORA).optional(),
+  minConfidence: z.coerce.number().min(0).max(1).optional(),
   limit: z.coerce.number().int().positive().max(100).default(50)
 });
 
@@ -46,6 +47,7 @@ sourcesRouter.get("/connections", async (req, res, next) => {
     const sources = await listSefariaReferenceConnections({
       query: input.q,
       corpus: input.corpus,
+      minConfidence: input.minConfidence,
       limit: input.limit
     });
 
@@ -66,6 +68,20 @@ sourcesRouter.get("/connections", async (req, res, next) => {
           rationale: connection.rationale,
           confidence: connection.confidence,
           rank: connection.rank,
+          generatedBy: connection.classificationRun
+            ? {
+                provider: connection.classificationRun.provider,
+                model: connection.classificationRun.model,
+                promptVersion: connection.classificationRun.promptVersion,
+                providerRequestId: connection.classificationRun.providerRequestId,
+                inputTokens: connection.classificationRun.inputTokens,
+                outputTokens: connection.classificationRun.outputTokens,
+                totalTokens: connection.classificationRun.totalTokens,
+                estimatedCostUsd: connection.classificationRun.estimatedCostUsd,
+                createdAt: connection.classificationRun.createdAt,
+                completedAt: connection.classificationRun.completedAt
+              }
+            : null,
           rabbiSacksRef: connection.textUnit.ref,
           rabbiSacksUrl: `https://www.sefaria.org/${connection.textUnit.ref.replaceAll(" ", "_").replaceAll(":", ".")}?lang=bi`,
           text: connection.textUnit.text,

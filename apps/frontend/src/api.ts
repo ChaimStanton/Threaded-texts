@@ -72,6 +72,18 @@ export type SourceConnectionPassage = {
   rationale?: string;
   confidence?: number;
   rank?: number;
+  generatedBy: {
+    provider: string;
+    model: string;
+    promptVersion: string;
+    providerRequestId?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    estimatedCostUsd?: number;
+    createdAt: string;
+    completedAt?: string;
+  } | null;
   rabbiSacksRef: string;
   rabbiSacksUrl: string;
   text: string;
@@ -99,6 +111,18 @@ export type SourceConnection = {
   url?: string;
   connectionCount: number;
   passages: SourceConnectionPassage[];
+};
+
+export type SefariaText = {
+  ref: string;
+  heRef?: string;
+  text?: string | string[];
+  he?: string | string[];
+  versions?: Array<{
+    title?: string;
+    versionTitle?: string;
+    language?: string;
+  }>;
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -231,6 +255,7 @@ export async function createSourceNote(input: {
 export async function fetchSourceConnections(input: {
   query?: string;
   corpus?: ComplementCorpus | "all";
+  minConfidence?: number;
   limit?: number;
 } = {}): Promise<SourceConnection[]> {
   const params = new URLSearchParams();
@@ -243,6 +268,10 @@ export async function fetchSourceConnections(input: {
     params.set("corpus", input.corpus);
   }
 
+  if (typeof input.minConfidence === "number") {
+    params.set("minConfidence", String(input.minConfidence));
+  }
+
   if (input.limit) {
     params.set("limit", String(input.limit));
   }
@@ -250,4 +279,9 @@ export async function fetchSourceConnections(input: {
   const query = params.toString();
   const data = await requestJson<{ sources: SourceConnection[] }>(`/api/sources/connections${query ? `?${query}` : ""}`);
   return data.sources;
+}
+
+export async function fetchSefariaText(ref: string): Promise<SefariaText> {
+  const data = await requestJson<{ text: SefariaText }>(`/api/sources/sefaria/${encodeURIComponent(ref)}`);
+  return data.text;
 }
