@@ -2,6 +2,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LinkIcon from "@mui/icons-material/Link";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -16,6 +17,7 @@ import {
   Divider,
   FormControlLabel,
   FormControl,
+  GlobalStyles,
   IconButton,
   InputAdornment,
   InputLabel,
@@ -97,7 +99,38 @@ export function App() {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
+      <GlobalStyles
+        styles={{
+          "@media print": {
+            "@page": {
+              size: "A4",
+              margin: "14mm"
+            },
+            "body, #root": {
+              background: "#fff !important"
+            },
+            ".no-print": {
+              display: "none !important"
+            },
+            ".print-area": {
+              display: "block !important",
+              width: "100% !important"
+            },
+            ".print-area .MuiPaper-root": {
+              border: "0 !important",
+              boxShadow: "none !important"
+            },
+            ".print-break-inside-avoid": {
+              breakInside: "avoid",
+              pageBreakInside: "avoid"
+            },
+            ".print-source-title": {
+              fontSize: "22pt !important"
+            }
+          }
+        }}
+      />
+      <AppBar className="no-print" position="static" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
         <Toolbar sx={{ gap: 2 }}>
           <LibraryBooksIcon color="primary" />
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -127,6 +160,7 @@ export function App() {
 
         <Stack direction={{ xs: "column", lg: "row" }} spacing={3} alignItems="stretch">
           <Paper
+            className="no-print"
             component="aside"
             elevation={0}
             sx={{
@@ -253,7 +287,7 @@ export function App() {
             </List>
           </Paper>
 
-          <Box component="main" sx={{ flex: 1, minWidth: 0 }}>
+          <Box component="main" className="print-area" sx={{ flex: 1, minWidth: 0 }}>
             {selectedSource ? <SourceDetail source={selectedSource} /> : <EmptyDetailState />}
           </Box>
         </Stack>
@@ -265,6 +299,47 @@ export function App() {
 function SourceDetail({ source }: { source: SourceConnection }) {
   const sourceUrl = source.url || buildSefariaUrl(source.ref);
   const [showSourceText, setShowSourceText] = useState(false);
+  const [sourceText, setSourceText] = useState<SefariaText | null>(null);
+  const [loadingText, setLoadingText] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+
+  const loadSourceText = async () => {
+    setLoadingText(true);
+    setTextError(null);
+
+    try {
+      const nextSourceText = await fetchSefariaText(source.ref);
+      setSourceText(nextSourceText);
+      return nextSourceText;
+    } catch (error) {
+      setTextError(error instanceof Error ? error.message : "Unable to load Sefaria text");
+      return null;
+    } finally {
+      setLoadingText(false);
+    }
+  };
+
+  useEffect(() => {
+    setSourceText(null);
+    setTextError(null);
+    setShowSourceText(false);
+  }, [source.id]);
+
+  useEffect(() => {
+    if (showSourceText && !sourceText && !loadingText) {
+      void loadSourceText();
+    }
+  }, [showSourceText, sourceText, loadingText]);
+
+  const handleGeneratePdf = async () => {
+    setShowSourceText(true);
+
+    if (!sourceText) {
+      await loadSourceText();
+    }
+
+    window.setTimeout(() => window.print(), 150);
+  };
 
   return (
     <Stack spacing={3}>
@@ -272,7 +347,7 @@ function SourceDetail({ source }: { source: SourceConnection }) {
         <Stack spacing={2}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography component="h2" variant="h4" sx={{ fontWeight: 700 }}>
+              <Typography component="h2" variant="h4" className="print-source-title" sx={{ fontWeight: 700 }}>
                 {source.ref}
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
@@ -281,31 +356,42 @@ function SourceDetail({ source }: { source: SourceConnection }) {
                 {source.category ? <Chip label={source.category} size="small" /> : null}
               </Stack>
             </Box>
-            <Button
-              href={sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              variant="outlined"
-              startIcon={<OpenInNewIcon />}
-              sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
-            >
-              Open Source
-            </Button>
+            <Stack className="no-print" direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
+              <Button
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                variant="outlined"
+                startIcon={<OpenInNewIcon />}
+              >
+                Open Source
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={loadingText ? <CircularProgress color="inherit" size={16} /> : <PictureAsPdfIcon />}
+                onClick={handleGeneratePdf}
+                disabled={loadingText}
+              >
+                Generate PDF
+              </Button>
+            </Stack>
           </Stack>
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showSourceText}
-                onChange={(event) => setShowSourceText(event.target.checked)}
-                inputProps={{ "aria-label": "Show source text" }}
-              />
-            }
-            label="Show source text"
-          />
+          <Box className="no-print">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showSourceText}
+                  onChange={(event) => setShowSourceText(event.target.checked)}
+                  inputProps={{ "aria-label": "Show source text" }}
+                />
+              }
+              label="Show source text"
+            />
+          </Box>
 
           <Collapse in={showSourceText} unmountOnExit>
-            <SourceTextPanel refText={source.ref} />
+            <SourceTextPanel sourceText={sourceText} loadingText={loadingText} textError={textError} />
           </Collapse>
 
           <Divider />
@@ -333,7 +419,7 @@ function SourceDetail({ source }: { source: SourceConnection }) {
           </Paper>
         ) : (
           source.passages.map((passage) => (
-            <Paper key={passage.id} elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 2, md: 2.5 } }}>
+            <Paper key={passage.id} className="print-break-inside-avoid" elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 2, md: 2.5 } }}>
               <Stack spacing={1.5}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-start" }}>
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -345,6 +431,7 @@ function SourceDetail({ source }: { source: SourceConnection }) {
                     </Typography>
                   </Box>
                   <Button
+                    className="no-print"
                     href={passage.rabbiSacksUrl}
                     target="_blank"
                     rel="noreferrer"
@@ -395,40 +482,15 @@ function SourceDetail({ source }: { source: SourceConnection }) {
   );
 }
 
-function SourceTextPanel({ refText }: { refText: string }) {
-  const [sourceText, setSourceText] = useState<SefariaText | null>(null);
-  const [loadingText, setLoadingText] = useState(false);
-  const [textError, setTextError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let ignore = false;
-
-    setLoadingText(true);
-    setTextError(null);
-    setSourceText(null);
-
-    fetchSefariaText(refText)
-      .then((text) => {
-        if (!ignore) {
-          setSourceText(text);
-        }
-      })
-      .catch((error) => {
-        if (!ignore) {
-          setTextError(error instanceof Error ? error.message : "Unable to load Sefaria text");
-        }
-      })
-      .finally(() => {
-        if (!ignore) {
-          setLoadingText(false);
-        }
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [refText]);
-
+function SourceTextPanel({
+  sourceText,
+  loadingText,
+  textError
+}: {
+  sourceText: SefariaText | null;
+  loadingText: boolean;
+  textError: string | null;
+}) {
   return (
     <Paper elevation={0} sx={{ border: 1, borderColor: "divider", bgcolor: "grey.50", p: 2 }}>
       {loadingText ? (
