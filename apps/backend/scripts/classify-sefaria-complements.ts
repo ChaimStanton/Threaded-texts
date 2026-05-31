@@ -32,7 +32,8 @@ const rows = await prisma.textUnit.findMany({
     classificationRuns: {
       none: {
         deletedAt: null,
-        promptVersion: "complementary-sefaria-refs-v1"
+        promptVersion: "complementary-sefaria-refs-v1",
+        status: "completed"
       }
     }
   },

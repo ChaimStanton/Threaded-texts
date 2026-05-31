@@ -236,6 +236,22 @@ if (!tableSql("SefariaReference").includes("SefariaReference_corpus_check")) {
   `);
 }
 
+const llmUsageColumns = [
+  ["providerRequestId", "TEXT"],
+  ["inputTokens", "INTEGER"],
+  ["cachedInputTokens", "INTEGER"],
+  ["outputTokens", "INTEGER"],
+  ["reasoningTokens", "INTEGER"],
+  ["totalTokens", "INTEGER"],
+  ["estimatedCostUsd", "REAL"]
+] as const;
+
+for (const [column, type] of llmUsageColumns) {
+  if (!hasColumn("LlmTextClassification", column)) {
+    db.exec(`ALTER TABLE "LlmTextClassification" ADD COLUMN "${column}" ${type};`);
+  }
+}
+
 db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS "text_ref_key" ON "text"("ref");
   CREATE INDEX IF NOT EXISTS "text_bookId_idx" ON "text"("bookId");
@@ -335,6 +351,13 @@ db.exec(`
       lc."provider",
       lc."model",
       lc."promptVersion",
+      lc."providerRequestId",
+      lc."inputTokens",
+      lc."cachedInputTokens",
+      lc."outputTokens",
+      lc."reasoningTokens",
+      lc."totalTokens",
+      lc."estimatedCostUsd",
       sr."id" AS "sefariaReferenceId",
       sr."ref" AS "sefariaRef",
       sr."corpus" AS "sefariaCorpus",

@@ -1,6 +1,6 @@
-import { chat } from "@tanstack/ai";
-import { openaiText } from "@tanstack/ai-openai";
-import type { OpenAIChatModel } from "@tanstack/ai-openai";
+import type { Prisma } from "@prisma/client";
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { env } from "../env.js";
 import {
@@ -13,14 +13,14 @@ import {
 const ComplementSchema = z.object({
   ref: z.string().min(1),
   corpus: z.enum(ALLOWED_COMPLEMENT_CORPORA),
-  normalizedRef: z.string().min(1).optional(),
-  book: z.string().min(1).optional(),
-  category: z.string().min(1).optional(),
-  url: z.string().url().optional(),
-  topic: z.string().min(1).optional(),
-  rationale: z.string().min(1).optional(),
-  confidence: z.number().min(0).max(1).optional(),
-  rank: z.number().int().positive().optional()
+  normalizedRef: z.string().nullable(),
+  book: z.string().nullable(),
+  category: z.string().nullable(),
+  url: z.string().nullable(),
+  topic: z.string().nullable(),
+  rationale: z.string().nullable(),
+  confidence: z.number().min(0).max(1).nullable(),
+  rank: z.number().int().positive().nullable()
 });
 
 const ComplementClassificationSchema = z.object({
@@ -28,6 +28,17 @@ const ComplementClassificationSchema = z.object({
 });
 
 export type ComplementClassificationResult = z.infer<typeof ComplementClassificationSchema>;
+
+type ModelPricing = {
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+};
+
+const pricingByModel: Record<string, ModelPricing> = {
+  "gpt-5.2": { inputUsdPerMillion: 1.75, outputUsdPerMillion: 14 },
+  "gpt-5.4": { inputUsdPerMillion: 2.5, outputUsdPerMillion: 15 },
+  "gpt-5.4-mini": { inputUsdPerMillion: 0.75, outputUsdPerMillion: 4.5 }
+};
 
 const systemPrompt = [
   "You are classifying Rabbi Jonathan Sacks paragraphs against Jewish source texts.",
@@ -37,6 +48,19 @@ const systemPrompt = [
   "Prefer canonical Sefaria refs. If a broad source is useful, return the tightest relevant ref.",
   "Do not return sources from midrash, commentaries, halakhic works outside Shulchan Aruch/Rambam, or modern books."
 ].join(" ");
+
+function estimateCostUsd(input: { model: string; inputTokens?: number; outputTokens?: number }) {
+  const pricing = pricingByModel[input.model];
+
+  if (!pricing || input.inputTokens === undefined || input.outputTokens === undefined) {
+    return undefined;
+  }
+
+  return (
+    (input.inputTokens / 1_000_000) * pricing.inputUsdPerMillion +
+    (input.outputTokens / 1_000_000) * pricing.outputUsdPerMillion
+  );
+}
 
 export async function classifySefariaComplements(input: {
   paragraphId: string;
@@ -48,43 +72,80 @@ export async function classifySefariaComplements(input: {
     throw new Error("OPENAI_API_KEY is required to classify Sefaria complements.");
   }
 
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const model = input.model ?? env.OPENAI_COMPLEMENT_MODEL;
   const prompt = buildComplementClassificationPrompt({
     sefariaRef: input.sefariaRef,
     text: input.text
   });
   const request = {
-    adapter: "openaiText",
     provider: "openai",
+    api: "responses.create",
     model,
-    systemPrompt,
-    prompt
+    instructions: systemPrompt,
+    input: JSON.stringify(prompt),
+    text: {
+      format: "sefaria_complement_classification"
+    }
   };
 
-  const response = await chat({
-    adapter: openaiText(model as OpenAIChatModel),
-    systemPrompts: [systemPrompt],
-    messages: [
-      {
-        role: "user",
-        content: JSON.stringify(prompt)
-      }
-    ],
-    outputSchema: ComplementClassificationSchema,
-    temperature: 0.1
-  });
+  try {
+    const response = await openai.responses.create({
+      model,
+      instructions: systemPrompt,
+      input: JSON.stringify(prompt),
+      text: {
+        format: zodTextFormat(ComplementClassificationSchema, "sefaria_complement_classification")
+      },
+      temperature: 0.1
+    });
+    const parsed = ComplementClassificationSchema.parse(JSON.parse(response.output_text));
+    const inputTokens = response.usage?.input_tokens;
+    const outputTokens = response.usage?.output_tokens;
+    const estimatedCostUsd = estimateCostUsd({ model, inputTokens, outputTokens });
 
-  return recordLlmTextClassification({
-    paragraphId: input.paragraphId,
-    provider: "openai",
-    model,
-    promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
-    prompt,
-    request,
-    response,
-    responseText: JSON.stringify(response),
-    complements: response.complements
-  });
+    return recordLlmTextClassification({
+      paragraphId: input.paragraphId,
+      provider: "openai",
+      model,
+      promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+      prompt,
+      request,
+      response: response as unknown as Prisma.InputJsonValue,
+      responseText: response.output_text,
+      providerRequestId: response.id,
+      inputTokens,
+      cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
+      outputTokens,
+      reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
+      totalTokens: response.usage?.total_tokens,
+      estimatedCostUsd,
+      complements: parsed.complements.map((complement) => ({
+        ref: complement.ref,
+        corpus: complement.corpus,
+        normalizedRef: complement.normalizedRef ?? undefined,
+        book: complement.book ?? undefined,
+        category: complement.category ?? undefined,
+        url: complement.url ?? undefined,
+        topic: complement.topic ?? undefined,
+        rationale: complement.rationale ?? undefined,
+        confidence: complement.confidence ?? undefined,
+        rank: complement.rank ?? undefined
+      }))
+    });
+  } catch (error) {
+    return recordLlmTextClassification({
+      paragraphId: input.paragraphId,
+      provider: "openai",
+      model,
+      promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+      prompt,
+      request,
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+      completedAt: new Date()
+    });
+  }
 }
 
 export function buildDryRunComplementClassificationRequest(input: { sefariaRef: string; text: string; model?: string }) {
@@ -93,9 +154,10 @@ export function buildDryRunComplementClassificationRequest(input: { sefariaRef: 
 
   return {
     provider: "openai",
+    api: "responses.create",
     model,
     promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
-    systemPrompt,
+    instructions: systemPrompt,
     prompt,
     outputSchema: "ComplementClassificationSchema"
   };

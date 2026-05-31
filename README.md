@@ -10,7 +10,7 @@ Node backend and React/MUI frontend for LSJS Sacks source work.
 - Tooling: npm workspaces, Moon, Proto
 - Sefaria: typed fetch client placeholder in `apps/backend/src/sefaria/client.ts`
 - Rabbi Sacks: initial scraper endpoint at `POST /rabbi-sacks/articles/scrape`
-- LLM classification: TanStack AI + OpenAI adapter for structured Sefaria complement refs
+- LLM classification: official OpenAI Node client for structured Sefaria complement refs
 
 ## Setup
 

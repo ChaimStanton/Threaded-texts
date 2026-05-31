@@ -153,6 +153,13 @@ model LlmTextClassification {
   /// Full parsed response payload from the LLM provider.
   response    Json?
   responseText String?
+  providerRequestId String?
+  inputTokens Int?
+  cachedInputTokens Int?
+  outputTokens Int?
+  reasoningTokens Int?
+  totalTokens Int?
+  estimatedCostUsd Float?
   status      String   @default("pending")
   error       String?
   completedAt DateTime?

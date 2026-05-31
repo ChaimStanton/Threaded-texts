@@ -63,6 +63,13 @@ export type RecordLlmTextClassificationInput = {
   request: Prisma.InputJsonValue;
   response?: Prisma.InputJsonValue;
   responseText?: string;
+  providerRequestId?: string;
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number;
   status?: string;
   error?: string;
   completedAt?: Date;
@@ -87,6 +94,13 @@ export async function recordLlmTextClassification(input: RecordLlmTextClassifica
         request: input.request,
         response: input.response,
         responseText: input.responseText,
+        providerRequestId: input.providerRequestId,
+        inputTokens: input.inputTokens,
+        cachedInputTokens: input.cachedInputTokens,
+        outputTokens: input.outputTokens,
+        reasoningTokens: input.reasoningTokens,
+        totalTokens: input.totalTokens,
+        estimatedCostUsd: input.estimatedCostUsd,
         status: input.status ?? "completed",
         error: input.error,
         completedAt: input.completedAt ?? new Date()
