@@ -62,7 +62,9 @@ const systemPrompt = [
   "Prefer explicit refs quoted or footnoted in the paragraph when they are inside the allowed corpora.",
   "Prefer canonical Sefaria refs. If a broad source is useful, return the tightest relevant ref, including segment refs for Talmud when possible.",
   "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
-  "Do not return confidence below 0.55.",
+  "Do not overuse anchor verses. Esther 3:8 is appropriate only when the paragraph is specifically about Jews as a scattered/distinct people whose laws make them politically suspect. Leviticus 26:44 is appropriate only when the paragraph is specifically about covenantal survival despite exile/enemies.",
+  "A useful complement should help a teacher frame a source-based discussion, not merely provide a vague thematic echo.",
+  "Do not return confidence below 0.65.",
   "Do not return sources from midrash, commentaries, halakhic works outside Shulchan Aruch/Rambam, or modern books."
 ].join(" ");
 
@@ -104,7 +106,7 @@ function isUsableComplement(complement: ComplementClassificationResult["compleme
   return (
     !complement.ref.includes("?") &&
     complement.confidence !== null &&
-    complement.confidence >= 0.55 &&
+    complement.confidence >= 0.65 &&
     complement.rank !== null
   );
 }
@@ -307,7 +309,9 @@ export async function classifySefariaComplementsBatch(
       "Only return sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
       "Use canonical Sefaria refs when possible, and use the tightest relevant segment ref for Talmud when possible.",
       "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
-      "Do not return confidence below 0.55.",
+      "Do not overuse anchor verses. Esther 3:8 is appropriate only when the paragraph is specifically about Jews as a scattered/distinct people whose laws make them politically suspect. Leviticus 26:44 is appropriate only when the paragraph is specifically about covenantal survival despite exile/enemies.",
+      "A useful complement should help a teacher frame a source-based discussion, not merely provide a vague thematic echo.",
+      "Do not return confidence below 0.65.",
       "Return concise rationales grounded in the paragraph and the source.",
       "Every result must use the exact paragraphId supplied in the input."
     ],

@@ -27,7 +27,9 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
       "Use canonical Sefaria refs when possible, for example 'Pirkei Avot 2:5' or 'Genesis 1:1'.",
       "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
       "Use the tightest relevant Sefaria ref available, including segment refs for Talmud when possible.",
-      "Confidence must be calibrated: 0.85-1.0 for direct quotation/citation or a close conceptual match, 0.65-0.84 for a strong but indirect match, 0.55-0.64 for a plausible but weak match. Do not return anything below 0.55.",
+      "Do not overuse anchor verses. Esther 3:8 is appropriate only when the paragraph is specifically about Jews as a scattered/distinct people whose laws make them politically suspect. Leviticus 26:44 is appropriate only when the paragraph is specifically about covenantal survival despite exile/enemies.",
+      "A useful complement should help a teacher frame a source-based discussion, not merely provide a vague thematic echo.",
+      "Confidence must be calibrated: 0.85-1.0 for direct quotation/citation or a close conceptual match, 0.65-0.84 for a strong but indirect match. Do not return plausible-but-weak matches below 0.65.",
       "Return concise rationales grounded in the paragraph and the source."
     ],
     responseFormat: "Return only a valid JSON object matching outputSchema. Do not wrap it in markdown.",
