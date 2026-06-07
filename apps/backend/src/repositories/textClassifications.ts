@@ -16,15 +16,24 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
     question: COMPLEMENT_CLASSIFICATION_QUESTION,
     allowedCorpora: ALLOWED_COMPLEMENT_CORPORA,
     instructions: [
+      "Return zero complements when the paragraph is too short, transitional, historical-only, or lacks a strong classical source hook.",
+      "Return at most three complements.",
       "Find source-text entry points into the Rabbi Sacks paragraph's themes; do not merely keyword match.",
       "The discovery direction is from the classical source to Rabbi Sacks: a reader should be able to start with the source and then find this paragraph illuminating.",
+      "Require a concrete hook: a shared legal principle, biblical verse, covenantal idea, moral problem, or explicit source cited by the paragraph.",
+      "Do not return generic mood links such as 'questioning', 'uncertainty', 'teaching', or 'exile' unless the source itself addresses the same specific problem.",
+      "Prefer explicit refs quoted or footnoted in the paragraph when they are inside the allowed corpora.",
       "Only return sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
       "Use canonical Sefaria refs when possible, for example 'Pirkei Avot 2:5' or 'Genesis 1:1'.",
+      "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
+      "Use the tightest relevant Sefaria ref available, including segment refs for Talmud when possible.",
+      "Confidence must be calibrated: 0.85-1.0 for direct quotation/citation or a close conceptual match, 0.65-0.84 for a strong but indirect match, 0.55-0.64 for a plausible but weak match. Do not return anything below 0.55.",
       "Return concise rationales grounded in the paragraph and the source."
     ],
     responseFormat: "Return only a valid JSON object matching outputSchema. Do not wrap it in markdown.",
     outputSchema: {
-      complements: [
+      complements: "array of zero to three items",
+      complementItemShape: [
         {
           ref: "string, canonical Sefaria ref",
           corpus: "tanach | gemara | mishna | shulchan_aruch | rambam",

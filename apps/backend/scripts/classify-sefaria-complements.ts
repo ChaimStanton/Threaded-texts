@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import {
   buildDryRunComplementClassificationRequest,
-  classifySefariaComplements
+  classifySefariaComplements,
+  classifySefariaComplementsBatch
 } from "../src/services/sefariaComplementClassifier.js";
 
 const prisma = new PrismaClient();
@@ -19,21 +20,29 @@ const args = new Map(
 const limit = Number(args.get("limit") ?? 1);
 const model = args.get("model");
 const paragraphId = args.get("paragraph-id");
+const bookId = args.get("book-id");
+const bookSlug = args.get("book-slug");
+const language = args.get("language") ?? "en";
+const batchSize = Number(args.get("batch-size") ?? 1);
 const dryRun = args.get("dry-run") === "true";
 
 const rows = await prisma.textUnit.findMany({
   where: {
     paragraphId: paragraphId ? paragraphId : undefined,
-    language: "en",
+    language,
     isAuxiliary: false,
     deletedAt: null,
-    book: { deletedAt: null },
+    bookId: bookId ? bookId : undefined,
+    book: {
+      deletedAt: null,
+      slug: bookSlug ? bookSlug : undefined
+    },
     chapterRef: { deletedAt: null, isNonMainText: false },
     classificationRuns: {
       none: {
         deletedAt: null,
         promptVersion: "complementary-sefaria-refs-v1",
-        status: "completed"
+        status: { in: ["completed", "pending"] }
       }
     }
   },
@@ -43,41 +52,62 @@ const rows = await prisma.textUnit.findMany({
 
 const results = [];
 
-for (const row of rows) {
+for (let index = 0; index < rows.length; index += batchSize) {
+  const batch = rows.slice(index, index + batchSize);
+
   if (dryRun) {
-    results.push({
-      paragraphId: row.paragraphId,
-      ref: row.ref,
-      request: buildDryRunComplementClassificationRequest({
-        sefariaRef: row.ref,
-        text: row.text,
-        model
-      })
-    });
+    for (const row of batch) {
+      results.push({
+        paragraphId: row.paragraphId,
+        ref: row.ref,
+        request: buildDryRunComplementClassificationRequest({
+          sefariaRef: row.ref,
+          text: row.text,
+          model
+        })
+      });
+    }
     continue;
   }
 
-  const classification = await classifySefariaComplements({
-    paragraphId: row.paragraphId,
-    sefariaRef: row.ref,
-    text: row.text,
-    model
-  });
+  const classifications =
+    batch.length === 1
+      ? [
+          await classifySefariaComplements({
+            paragraphId: batch[0].paragraphId,
+            sefariaRef: batch[0].ref,
+            text: batch[0].text,
+            model
+          })
+        ]
+      : await classifySefariaComplementsBatch(
+          batch.map((row) => ({
+            paragraphId: row.paragraphId,
+            sefariaRef: row.ref,
+            text: row.text
+          })),
+          { model }
+        );
 
-  results.push({
-    paragraphId: row.paragraphId,
-    ref: row.ref,
-    classificationRunId: classification.id,
-    complements: classification.sefariaComplements.map((complement) => ({
-      ref: complement.sefariaReference.ref,
-      corpus: complement.sefariaReference.corpus,
-      topic: complement.topic,
-      confidence: complement.confidence,
-      rank: complement.rank
-    }))
-  });
+  for (const classification of classifications) {
+    const row = batch.find((item) => item.paragraphId === classification.paragraphId);
+
+    results.push({
+      paragraphId: classification.paragraphId,
+      ref: row?.ref,
+      classificationRunId: classification.id,
+      status: classification.status,
+      complements: classification.sefariaComplements.map((complement) => ({
+        ref: complement.sefariaReference.ref,
+        corpus: complement.sefariaReference.corpus,
+        topic: complement.topic,
+        confidence: complement.confidence,
+        rank: complement.rank
+      }))
+    });
+  }
 }
 
-console.log(JSON.stringify({ dryRun, requested: limit, processed: results.length, results }, null, 2));
+console.log(JSON.stringify({ dryRun, requested: limit, batchSize, processed: results.length, results }, null, 2));
 
 await prisma.$disconnect();

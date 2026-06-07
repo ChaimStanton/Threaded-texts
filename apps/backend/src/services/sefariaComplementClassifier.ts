@@ -24,10 +24,20 @@ const ComplementSchema = z.object({
 });
 
 const ComplementClassificationSchema = z.object({
-  complements: z.array(ComplementSchema).max(8)
+  complements: z.array(ComplementSchema).max(3)
+});
+
+const BatchComplementClassificationSchema = z.object({
+  results: z.array(
+    z.object({
+      paragraphId: z.string().min(1),
+      complements: z.array(ComplementSchema).max(3)
+    })
+  )
 });
 
 export type ComplementClassificationResult = z.infer<typeof ComplementClassificationSchema>;
+export type BatchComplementClassificationResult = z.infer<typeof BatchComplementClassificationSchema>;
 
 type ModelPricing = {
   inputUsdPerMillion: number;
@@ -45,22 +55,34 @@ const systemPrompt = [
   "You are classifying Rabbi Jonathan Sacks paragraphs against Jewish source texts.",
   "Find classical source-text entry points that help a reader discover and understand the Rabbi Sacks paragraph's ideas, questions, tensions, or ethical themes.",
   "The direction matters: the source should lead readers toward Rabbi Sacks, not merely be something Rabbi Sacks happens to complement.",
+  "Return no complements when a paragraph is too short, transitional, historical-only, or lacks a strong classical source hook.",
+  "Require a concrete hook: a shared legal principle, biblical verse, covenantal idea, moral problem, or explicit source cited by the paragraph.",
+  "Do not return generic mood links such as questioning, uncertainty, teaching, or exile unless the source itself addresses the same specific problem.",
   "Only use sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
-  "Prefer canonical Sefaria refs. If a broad source is useful, return the tightest relevant ref.",
+  "Prefer explicit refs quoted or footnoted in the paragraph when they are inside the allowed corpora.",
+  "Prefer canonical Sefaria refs. If a broad source is useful, return the tightest relevant ref, including segment refs for Talmud when possible.",
+  "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
+  "Do not return confidence below 0.55.",
   "Do not return sources from midrash, commentaries, halakhic works outside Shulchan Aruch/Rambam, or modern books."
 ].join(" ");
 
-function estimateCostUsd(input: { model: string; inputTokens?: number; outputTokens?: number }) {
+export function estimateCostUsd(input: {
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  batchDiscount?: boolean;
+}) {
   const pricing = pricingByModel[input.model];
 
   if (!pricing || input.inputTokens === undefined || input.outputTokens === undefined) {
     return undefined;
   }
 
-  return (
+  const cost =
     (input.inputTokens / 1_000_000) * pricing.inputUsdPerMillion +
-    (input.outputTokens / 1_000_000) * pricing.outputUsdPerMillion
-  );
+    (input.outputTokens / 1_000_000) * pricing.outputUsdPerMillion;
+
+  return input.batchDiscount ? cost * 0.5 : cost;
 }
 
 function parseJsonObject(value: string) {
@@ -82,9 +104,77 @@ function isUsableComplement(complement: ComplementClassificationResult["compleme
   return (
     !complement.ref.includes("?") &&
     complement.confidence !== null &&
-    complement.confidence > 0 &&
+    complement.confidence >= 0.55 &&
     complement.rank !== null
   );
+}
+
+export function buildComplementResponseBody(input: {
+  sefariaRef: string;
+  text: string;
+  model?: string;
+  maxOutputTokens?: number;
+}) {
+  const model = input.model ?? env.OPENAI_COMPLEMENT_MODEL;
+  const prompt = buildComplementClassificationPrompt({
+    sefariaRef: input.sefariaRef,
+    text: input.text
+  });
+  const responseOptions = {
+    model,
+    instructions: systemPrompt,
+    input: JSON.stringify(prompt),
+    prompt_cache_key: "sefaria-complement-classification-v1",
+    prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+    reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+    max_output_tokens: input.maxOutputTokens ?? env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
+    ...(supportsTemperature(model) ? { temperature: 0.1 } : {})
+  } as const;
+
+  return {
+    prompt,
+    body: supportsStructuredOutputs(model)
+      ? {
+          ...responseOptions,
+          text: {
+            format: zodTextFormat(ComplementClassificationSchema, "sefaria_complement_classification")
+          }
+        }
+      : responseOptions,
+    request: {
+      provider: "openai",
+      api: "responses.create",
+      model,
+      instructions: systemPrompt,
+      input: JSON.stringify(prompt),
+      prompt_cache_key: "sefaria-complement-classification-v1",
+      prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+      reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+      max_output_tokens: input.maxOutputTokens ?? env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
+      text: {
+        format: supportsStructuredOutputs(model) ? "sefaria_complement_classification" : "plain_json"
+      }
+    } satisfies Prisma.InputJsonObject
+  };
+}
+
+export function parseComplementClassificationResponseText(responseText: string) {
+  return ComplementClassificationSchema.parse(parseJsonObject(responseText));
+}
+
+export function toStoredComplements(complements: ComplementClassificationResult["complements"]) {
+  return complements.filter(isUsableComplement).map((complement) => ({
+    ref: complement.ref,
+    corpus: complement.corpus,
+    normalizedRef: complement.normalizedRef ?? undefined,
+    book: complement.book ?? undefined,
+    category: complement.category ?? undefined,
+    url: complement.url ?? undefined,
+    topic: complement.topic ?? undefined,
+    rationale: complement.rationale ?? undefined,
+    confidence: complement.confidence ?? undefined,
+    rank: complement.rank ?? undefined
+  }));
 }
 
 export async function classifySefariaComplements(input: {
@@ -99,55 +189,24 @@ export async function classifySefariaComplements(input: {
 
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const model = input.model ?? env.OPENAI_COMPLEMENT_MODEL;
-  const prompt = buildComplementClassificationPrompt({
+  const { body: responseBody, prompt, request } = buildComplementResponseBody({
     sefariaRef: input.sefariaRef,
-    text: input.text
+    text: input.text,
+    model
   });
-  const request = {
-    provider: "openai",
-    api: "responses.create",
-    model,
-    instructions: systemPrompt,
-    input: JSON.stringify(prompt),
-    service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
-    prompt_cache_key: "sefaria-complement-classification-v1",
-    prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
-    reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
-    max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
-    text: {
-      format: supportsStructuredOutputs(model) ? "sefaria_complement_classification" : "plain_json"
-    }
-  };
 
   try {
-    const responseOptions = {
-      model,
-      instructions: systemPrompt,
-      input: JSON.stringify(prompt),
-      service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
-      prompt_cache_key: "sefaria-complement-classification-v1",
-      prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
-      reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
-      max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
-      ...(supportsTemperature(model) ? { temperature: 0.1 } : {})
-    } as const;
-    const response = await openai.responses.create(
-      supportsStructuredOutputs(model)
-        ? {
-            ...responseOptions,
-            text: {
-              format: zodTextFormat(ComplementClassificationSchema, "sefaria_complement_classification")
-            }
-          }
-        : responseOptions
-    );
+    const response = await openai.responses.create({
+      ...responseBody,
+      service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER
+    });
     const inputTokens = response.usage?.input_tokens;
     const outputTokens = response.usage?.output_tokens;
     const estimatedCostUsd = estimateCostUsd({ model, inputTokens, outputTokens });
     let parsed: ComplementClassificationResult;
 
     try {
-      parsed = ComplementClassificationSchema.parse(parseJsonObject(response.output_text));
+      parsed = parseComplementClassificationResponseText(response.output_text);
     } catch (error) {
       return recordLlmTextClassification({
         paragraphId: input.paragraphId,
@@ -187,18 +246,7 @@ export async function classifySefariaComplements(input: {
       reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
       totalTokens: response.usage?.total_tokens,
       estimatedCostUsd,
-      complements: parsed.complements.filter(isUsableComplement).map((complement) => ({
-        ref: complement.ref,
-        corpus: complement.corpus,
-        normalizedRef: complement.normalizedRef ?? undefined,
-        book: complement.book ?? undefined,
-        category: complement.category ?? undefined,
-        url: complement.url ?? undefined,
-        topic: complement.topic ?? undefined,
-        rationale: complement.rationale ?? undefined,
-        confidence: complement.confidence ?? undefined,
-        rank: complement.rank ?? undefined
-      }))
+      complements: toStoredComplements(parsed.complements)
     });
   } catch (error) {
     return recordLlmTextClassification({
@@ -212,6 +260,238 @@ export async function classifySefariaComplements(input: {
       error: error instanceof Error ? error.message : String(error),
       completedAt: new Date()
     });
+  }
+}
+
+export async function classifySefariaComplementsBatch(
+  inputs: Array<{
+    paragraphId: string;
+    sefariaRef: string;
+    text: string;
+  }>,
+  options: { model?: string } = {}
+) {
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  if (inputs.length === 1) {
+    return [
+      await classifySefariaComplements({
+        ...inputs[0],
+        model: options.model
+      })
+    ];
+  }
+
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is required to classify Sefaria complements.");
+  }
+
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const model = options.model ?? env.OPENAI_COMPLEMENT_MODEL;
+  const prompt = {
+    version: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+    question:
+      "For each Rabbi Sacks paragraph, which sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam help a reader discover and understand it?",
+    allowedCorpora: ALLOWED_COMPLEMENT_CORPORA,
+    instructions: [
+      "Classify each paragraph independently.",
+      "Return zero complements when a paragraph is too short, transitional, historical-only, or lacks a strong classical source hook.",
+      "Return at most three complements for each paragraph.",
+      "Find source-text entry points into each paragraph's themes; do not merely keyword match.",
+      "The discovery direction is from the classical source to Rabbi Sacks.",
+      "Require a concrete hook: a shared legal principle, biblical verse, covenantal idea, moral problem, or explicit source cited by the paragraph.",
+      "Do not return generic mood links such as 'questioning', 'uncertainty', 'teaching', or 'exile' unless the source itself addresses the same specific problem.",
+      "Prefer explicit refs quoted or footnoted in the paragraph when they are inside the allowed corpora.",
+      "Only return sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
+      "Use canonical Sefaria refs when possible, and use the tightest relevant segment ref for Talmud when possible.",
+      "For Rambam/Mishneh Torah refs, use Sefaria's title form without a 'Rambam,' prefix, for example 'Mishneh Torah, Repentance 5:1'.",
+      "Do not return confidence below 0.55.",
+      "Return concise rationales grounded in the paragraph and the source.",
+      "Every result must use the exact paragraphId supplied in the input."
+    ],
+    responseFormat: "Return only a valid JSON object matching outputSchema. Do not wrap it in markdown.",
+    outputSchema: {
+      results: [
+        {
+          paragraphId: "string, copied exactly from input",
+          complements: "array of zero to three items",
+          complementItemShape: [
+            {
+              ref: "string, canonical Sefaria ref",
+              corpus: "tanach | gemara | mishna | shulchan_aruch | rambam",
+              normalizedRef: "string or null",
+              book: "string or null",
+              category: "string or null",
+              url: "string or null",
+              topic: "string or null",
+              rationale: "string or null",
+              confidence: "number from 0 to 1",
+              rank: "integer, 1 is best"
+            }
+          ]
+        }
+      ]
+    },
+    paragraphs: inputs.map((input) => ({
+      paragraphId: input.paragraphId,
+      sefariaRef: input.sefariaRef,
+      text: input.text
+    }))
+  } satisfies Prisma.InputJsonObject;
+  const request = {
+    provider: "openai",
+    api: "responses.create",
+    model,
+    instructions: systemPrompt,
+    input: JSON.stringify(prompt),
+    service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
+    prompt_cache_key: "sefaria-complement-classification-v1",
+    prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+    reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+    max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
+    batchSize: inputs.length,
+    text: {
+      format: supportsStructuredOutputs(model) ? "batch_sefaria_complement_classification" : "plain_json"
+    }
+  };
+
+  try {
+    const responseOptions = {
+      model,
+      instructions: systemPrompt,
+      input: JSON.stringify(prompt),
+      service_tier: env.OPENAI_COMPLEMENT_SERVICE_TIER,
+      prompt_cache_key: "sefaria-complement-classification-v1",
+      prompt_cache_retention: env.OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION,
+      reasoning: { effort: env.OPENAI_COMPLEMENT_REASONING_EFFORT },
+      max_output_tokens: env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS,
+      ...(supportsTemperature(model) ? { temperature: 0.1 } : {})
+    } as const;
+    const response = await openai.responses.create(
+      supportsStructuredOutputs(model)
+        ? {
+            ...responseOptions,
+            text: {
+              format: zodTextFormat(BatchComplementClassificationSchema, "batch_sefaria_complement_classification")
+            }
+          }
+        : responseOptions
+    );
+    const inputTokens = response.usage?.input_tokens;
+    const outputTokens = response.usage?.output_tokens;
+    const totalEstimatedCostUsd = estimateCostUsd({ model, inputTokens, outputTokens });
+    let parsed: BatchComplementClassificationResult;
+
+    try {
+      parsed = BatchComplementClassificationSchema.parse(parseJsonObject(response.output_text));
+    } catch (error) {
+      const failedRuns = [];
+
+      for (const input of inputs) {
+        failedRuns.push(
+          await recordLlmTextClassification({
+            paragraphId: input.paragraphId,
+            provider: "openai",
+            model,
+            promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+            prompt,
+            request,
+            response: response as unknown as Prisma.InputJsonValue,
+            responseText: response.output_text,
+            providerRequestId: response.id,
+            inputTokens,
+            cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
+            outputTokens,
+            reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
+            totalTokens: response.usage?.total_tokens,
+            estimatedCostUsd: totalEstimatedCostUsd,
+            status: "failed",
+            error: error instanceof Error ? `Failed to parse model JSON: ${error.message}` : String(error),
+            completedAt: new Date()
+          })
+        );
+      }
+
+      return failedRuns;
+    }
+
+    const resultsByParagraphId = new Map(parsed.results.map((result) => [result.paragraphId, result]));
+    const inputTokenShare = inputTokens === undefined ? undefined : Math.round(inputTokens / inputs.length);
+    const outputTokenShare = outputTokens === undefined ? undefined : Math.round(outputTokens / inputs.length);
+    const totalTokenShare = response.usage?.total_tokens === undefined ? undefined : Math.round(response.usage.total_tokens / inputs.length);
+    const reasoningTokenShare =
+      response.usage?.output_tokens_details?.reasoning_tokens === undefined
+        ? undefined
+        : Math.round(response.usage.output_tokens_details.reasoning_tokens / inputs.length);
+    const cachedInputTokenShare =
+      response.usage?.input_tokens_details?.cached_tokens === undefined
+        ? undefined
+        : Math.round(response.usage.input_tokens_details.cached_tokens / inputs.length);
+    const costShare = totalEstimatedCostUsd === undefined ? undefined : totalEstimatedCostUsd / inputs.length;
+    const recordedRuns = [];
+
+    for (const input of inputs) {
+      const result = resultsByParagraphId.get(input.paragraphId);
+
+      recordedRuns.push(
+        await recordLlmTextClassification({
+          paragraphId: input.paragraphId,
+          provider: "openai",
+          model,
+          promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+          prompt,
+          request,
+          response: response as unknown as Prisma.InputJsonValue,
+          responseText: response.output_text,
+          providerRequestId: response.id,
+          inputTokens: inputTokenShare,
+          cachedInputTokens: cachedInputTokenShare,
+          outputTokens: outputTokenShare,
+          reasoningTokens: reasoningTokenShare,
+          totalTokens: totalTokenShare,
+          estimatedCostUsd: costShare,
+          status: result ? "completed" : "failed",
+          error: result ? undefined : "Batch response did not include this paragraphId.",
+          completedAt: new Date(),
+          complements: (result?.complements ?? []).filter(isUsableComplement).map((complement) => ({
+            ref: complement.ref,
+            corpus: complement.corpus,
+            normalizedRef: complement.normalizedRef ?? undefined,
+            book: complement.book ?? undefined,
+            category: complement.category ?? undefined,
+            url: complement.url ?? undefined,
+            topic: complement.topic ?? undefined,
+            rationale: complement.rationale ?? undefined,
+            confidence: complement.confidence ?? undefined,
+            rank: complement.rank ?? undefined
+          }))
+        })
+      );
+    }
+
+    return recordedRuns;
+  } catch (error) {
+    const failedRuns = [];
+
+    for (const input of inputs) {
+      failedRuns.push(
+        await recordLlmTextClassification({
+          paragraphId: input.paragraphId,
+          provider: "openai",
+          model,
+          promptVersion: COMPLEMENT_CLASSIFICATION_PROMPT_VERSION,
+          prompt,
+          request,
+          status: "failed",
+          error: error instanceof Error ? error.message : String(error),
+          completedAt: new Date()
+        })
+      );
+    }
+
+    return failedRuns;
   }
 }
 
