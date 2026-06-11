@@ -136,3 +136,11 @@ SEFARIA_SACKS_REQUIRE_ENGLISH=1 \
 SEFARIA_SACKS_WORK_TITLES="Not in God's Name; Confronting Religious Violence|Radical Then, Radical Now|The Home We Build Together; Recreating Society" \
 npm --workspace @lsjs-sacks/backend run ingest:sefaria:sacks -- --require-english
 ```
+
+Before spending OpenAI budget on the English-only tuning loop, run:
+
+```sh
+npm --workspace @lsjs-sacks/backend run check:sefaria:sacks-english
+```
+
+Only classify when `englishOnlyTargetsReady` contains one or more target works. If it is empty, Sefaria still has no English body text for the requested books and the loop should make no OpenAI calls.
