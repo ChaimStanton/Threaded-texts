@@ -22,6 +22,8 @@ export function buildComplementClassificationPrompt(input: { sefariaRef: string;
       "The discovery direction is from the classical source to Rabbi Sacks: a reader should be able to start with the source and then find this paragraph illuminating.",
       "Require a concrete hook: a shared legal principle, biblical verse, covenantal idea, moral problem, or explicit source cited by the paragraph.",
       "Do not return generic mood links such as 'questioning', 'uncertainty', 'teaching', or 'exile' unless the source itself addresses the same specific problem.",
+      "Do not use a source merely because it contains a matching word, name, or label; the source must develop the idea the paragraph is using.",
+      "For education/transmission paragraphs, prefer sources about teaching, memory, covenant, or public education over generic verses about children as blessing or legacy.",
       "Prefer explicit refs quoted or footnoted in the paragraph when they are inside the allowed corpora.",
       "Only return sources from Tanach, Gemara, Mishnah, Shulchan Aruch, or Rambam.",
       "Use canonical Sefaria refs when possible, for example 'Pirkei Avot 2:5' or 'Genesis 1:1'.",
