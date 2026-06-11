@@ -42,7 +42,21 @@ type SefariaIndexResponse = {
 const prisma = new PrismaClient();
 const SEFARIA_API_BASE_URL = process.env.SEFARIA_API_BASE_URL || "https://www.sefaria.org/api";
 const ONLY_MISSING = process.env.SEFARIA_SACKS_ONLY_MISSING === "1";
+const REQUIRE_ENGLISH =
+  process.env.SEFARIA_SACKS_REQUIRE_ENGLISH === "1" || process.argv.includes("--require-english");
 const REQUEST_DELAY_MS = Number(process.env.SEFARIA_SACKS_DELAY_MS || 25);
+const TARGET_WORK_TITLES = new Set(
+  [
+    ...process.argv
+      .slice(2)
+      .filter((arg) => arg.startsWith("--work-title="))
+      .map((arg) => arg.slice("--work-title=".length).trim()),
+    ...(process.env.SEFARIA_SACKS_WORK_TITLES || "")
+      .split("|")
+      .map((title) => title.trim())
+      .filter(Boolean)
+  ].filter(Boolean)
+);
 const RABBI_SACKS_AUTHOR = {
   slug: "rabbi-lord-jonathan-sacks",
   displayName: "Rabbi Lord Jonathan Sacks",
@@ -175,6 +189,11 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
   const data = await fetchJson<SefariaTextResponse>(`/texts/${encodeURIComponent(leaf.ref)}?context=0`);
   const english = flattenText(data.text);
   const hebrew = flattenText(data.he);
+
+  if (REQUIRE_ENGLISH && english.length === 0) {
+    return { imported: 0, skippedReason: "missing_english_text" };
+  }
+
   const language = english.length > 0 ? "en" : "he";
   const segments = english.length > 0 ? english : hebrew;
 
@@ -240,7 +259,7 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
     });
   }
 
-  return segments.length;
+  return { imported: segments.length };
 }
 
 async function main() {
@@ -256,11 +275,13 @@ async function main() {
   let importedWorks = 0;
   let importedChapters = 0;
   let importedTextUnits = 0;
+  const skippedLeaves: Array<{ work?: string; ref?: string; reason: string }> = [];
   const failures: Array<{ work?: string; ref?: string; error: string }> = [];
 
   for (const work of orderedWorks) {
     try {
       if (!work.title) continue;
+      if (TARGET_WORK_TITLES.size > 0 && !TARGET_WORK_TITLES.has(work.title)) continue;
 
       const index = await fetchJson<SefariaIndexResponse>(`/index/${encodeURIComponent(work.title)}`);
       const leaves = collectLeaves(index.schema);
@@ -304,8 +325,15 @@ async function main() {
         const leaf = leaves[leafIndex];
 
         try {
-          importedTextUnits += await ingestLeaf({ book, leaf, leafIndex: leafIndex + 1 });
-          importedChapters += 1;
+          const result = await ingestLeaf({ book, leaf, leafIndex: leafIndex + 1 });
+
+          if (result.skippedReason) {
+            skippedLeaves.push({ work: work.title, ref: leaf.ref, reason: result.skippedReason });
+          } else {
+            importedTextUnits += result.imported;
+            importedChapters += 1;
+          }
+
           await sleep(REQUEST_DELAY_MS);
         } catch (error) {
           failures.push({ work: work.title, ref: leaf.ref, error: error instanceof Error ? error.message : String(error) });
@@ -325,7 +353,22 @@ async function main() {
     textUnits: await prisma.textUnit.count({ where: { deletedAt: null, book: { authorId: author.id } } })
   };
 
-  console.log(JSON.stringify({ importedWorks, importedChapters, importedTextUnits, failures, counts }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        requireEnglish: REQUIRE_ENGLISH,
+        targetWorkTitles: [...TARGET_WORK_TITLES],
+        importedWorks,
+        importedChapters,
+        importedTextUnits,
+        skippedLeaves,
+        failures,
+        counts
+      },
+      null,
+      2
+    )
+  );
 
   if (failures.length > 0) {
     process.exitCode = 1;

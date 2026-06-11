@@ -116,3 +116,23 @@ GET /api/sources/sefaria/:ref
 ```
 
 When adding Rabbi Sacks-specific Sefaria support, prefer storing `jonathan-sacks` as a stable topic slug and fetching through backend code so frontend callers do not depend directly on Sefaria API shape.
+
+## English Body Availability Checked 2026-06-12
+
+For the current LLM complement tuning goal, English-only means actual English body text returned by Sefaria, not merely English catalogue titles.
+
+Checked with Sefaria MCP/API:
+
+- `Not in God's Name; Confronting Religious Violence`
+- `Radical Then, Radical Now`
+- `The Home We Build Together; Recreating Society`
+
+All three expose English section titles, but their body text versions currently report only Hebrew available versions. English-only ingestion should skip them unless Sefaria later exposes an English body version.
+
+Use the guarded importer form to avoid accidentally ingesting Hebrew for an English-only run:
+
+```sh
+SEFARIA_SACKS_REQUIRE_ENGLISH=1 \
+SEFARIA_SACKS_WORK_TITLES="Not in God's Name; Confronting Religious Violence|Radical Then, Radical Now|The Home We Build Together; Recreating Society" \
+npm --workspace @lsjs-sacks/backend run ingest:sefaria:sacks -- --require-english
+```
