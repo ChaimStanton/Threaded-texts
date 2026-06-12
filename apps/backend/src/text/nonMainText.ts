@@ -1,4 +1,5 @@
 const nonMainTitlePatterns = [
+  /^foreword\b/i,
   /^preface\b/i,
   /^publisher'?s preface\b/i,
   /^author'?s preface\b/i,

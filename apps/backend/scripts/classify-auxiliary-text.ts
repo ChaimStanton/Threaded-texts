@@ -5,6 +5,7 @@ type TextRow = {
   paragraphId: string;
   ref: string;
   text: string;
+  paragraph: number;
   book: {
     title: string;
   };
@@ -82,6 +83,14 @@ function classify(row: TextRow) {
     reasons.push("publication_metadata");
   }
 
+  if (
+    row.paragraph === 1 &&
+    /\b(Blaise Pascal|Pascal|Pens(?:e|\u00e9)es)\b|\u05d1\u05dc\u05d6 \u05e4\u05e1\u05e7\u05dc/i.test(plain) &&
+    /\btrans\.|\u05ea\u05e8\u05d2\u05d5\u05de|\u05d4\u05e2\u05e8\u05ea \u05d4\u05de\u05ea\u05e8\u05d2\u05dd/i.test(plain)
+  ) {
+    reasons.push("epigraph_or_external_quote");
+  }
+
   if (wordCount <= 8 && /^[\p{L}\p{M}\d ,;:'"()?\-.]+$/u.test(plain) && !/[.!?]$/.test(plain)) {
     if (/Preface|Publisher|Introduction|Further Reading|Haggadah|Essays/i.test(row.ref)) {
       reasons.push("short_title_or_metadata_line");
@@ -97,6 +106,7 @@ async function main() {
       paragraphId: true,
       ref: true,
       text: true,
+      paragraph: true,
       book: {
         select: { title: true }
       }
