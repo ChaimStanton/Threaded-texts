@@ -32,6 +32,7 @@ const maxTokens = Number(args.get("max-tokens") ?? 1200);
 const dryRun = args.get("dry-run") === "true";
 const delayMs = Number(args.get("delay-ms") ?? 1000);
 const stopOnProviderError = args.get("stop-on-provider-error") !== "false";
+const maxFailures = Number(args.get("max-failures") ?? 10);
 
 const ReviewSchema = z.object({
   verdict: z.enum(SEFARIA_COMPLEMENT_REVIEW_VERDICTS),
@@ -193,6 +194,7 @@ async function runReviews() {
 
   const openrouter = createOpenRouterClient();
   const results = [];
+  let failures = 0;
 
   for (const [index, row] of rows.entries()) {
     const sefariaText = await getSourceText(row.sefariaReference.ref);
@@ -263,7 +265,19 @@ async function runReviews() {
         verdict: completed.verdict,
         score: completed.score
       });
+      console.log(
+        JSON.stringify({
+          progress: true,
+          processed: results.length,
+          total: rows.length,
+          textSefariaComplementId: row.id,
+          status: completed.status,
+          verdict: completed.verdict,
+          score: completed.score
+        })
+      );
     } catch (error) {
+      failures += 1;
       const failed = await recordSefariaComplementAiReview({
         textSefariaComplementId: row.id,
         provider,
@@ -279,6 +293,16 @@ async function runReviews() {
       });
 
       results.push({ textSefariaComplementId: row.id, status: failed.status, reviewId: failed.id });
+      console.log(
+        JSON.stringify({
+          progress: true,
+          processed: results.length,
+          total: rows.length,
+          textSefariaComplementId: row.id,
+          status: failed.status,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      );
 
       if (stopOnProviderError && isProviderStopError(error)) {
         console.error(
@@ -287,6 +311,18 @@ async function runReviews() {
             reason: "Provider/rate-limit style error encountered.",
             processed: results.length,
             error: error instanceof Error ? error.message : String(error)
+          })
+        );
+        break;
+      }
+
+      if (failures >= maxFailures) {
+        console.error(
+          JSON.stringify({
+            stopped: true,
+            reason: "Maximum failures reached.",
+            processed: results.length,
+            failures
           })
         );
         break;
