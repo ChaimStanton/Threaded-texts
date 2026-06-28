@@ -75,7 +75,9 @@ function getChatCompletionText(response: any) {
 
 function isProviderStopError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return /429|rate.?limit|quota|credit|insufficient|temporarily unavailable|overloaded|free/i.test(message);
+  return /429|rate.?limit|quota|credit|insufficient|temporarily unavailable|overloaded|free|resourceexhausted|upstream error|worker local total request limit/i.test(
+    message
+  );
 }
 
 async function sleep(ms: number) {
