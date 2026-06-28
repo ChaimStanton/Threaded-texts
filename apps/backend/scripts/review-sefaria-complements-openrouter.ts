@@ -28,8 +28,10 @@ const provider = "openrouter";
 const bookSlug = args.get("book-slug");
 const minConfidence = args.has("min-confidence") ? Number(args.get("min-confidence")) : undefined;
 const maxConfidence = args.has("max-confidence") ? Number(args.get("max-confidence")) : undefined;
-const maxTokens = Number(args.get("max-tokens") ?? 700);
+const maxTokens = Number(args.get("max-tokens") ?? 1200);
 const dryRun = args.get("dry-run") === "true";
+const delayMs = Number(args.get("delay-ms") ?? 1000);
+const stopOnProviderError = args.get("stop-on-provider-error") !== "false";
 
 const ReviewSchema = z.object({
   verdict: z.enum(SEFARIA_COMPLEMENT_REVIEW_VERDICTS),
@@ -44,7 +46,20 @@ function parseJsonObject(value: string) {
   const trimmed = value.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
 
-  return JSON.parse(fenced ? fenced[1] : trimmed);
+  const candidate = fenced ? fenced[1] : trimmed;
+
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+
+    if (start >= 0 && end > start) {
+      return JSON.parse(candidate.slice(start, end + 1));
+    }
+
+    throw new Error(`No parseable JSON object found in model output: ${candidate.slice(0, 500)}`);
+  }
 }
 
 function getChatCompletionText(response: any) {
@@ -55,6 +70,19 @@ function getChatCompletionText(response: any) {
   }
 
   return text;
+}
+
+function isProviderStopError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /429|rate.?limit|quota|credit|insufficient|temporarily unavailable|overloaded|free/i.test(message);
+}
+
+async function sleep(ms: number) {
+  if (ms <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function flattenSefariaText(value: string | string[] | undefined): string | undefined {
@@ -166,7 +194,7 @@ async function runReviews() {
   const openrouter = createOpenRouterClient();
   const results = [];
 
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const sefariaText = await getSourceText(row.sefariaReference.ref);
     const prompt = buildSefariaComplementReviewPrompt({
       paragraphRef: row.textUnit.ref,
@@ -196,7 +224,8 @@ async function runReviews() {
         messages: [
           {
             role: "system",
-            content: "You are a strict Jewish source QA reviewer. Return only JSON. Judge fit, not plausibility."
+            content:
+              "You are a strict Jewish source QA reviewer. Return exactly one JSON object and nothing else. Do not include analysis, markdown, preamble, or trailing text. The first character must be { and the last character must be }. Judge fit, not plausibility."
           },
           {
             role: "user",
@@ -250,6 +279,22 @@ async function runReviews() {
       });
 
       results.push({ textSefariaComplementId: row.id, status: failed.status, reviewId: failed.id });
+
+      if (stopOnProviderError && isProviderStopError(error)) {
+        console.error(
+          JSON.stringify({
+            stopped: true,
+            reason: "Provider/rate-limit style error encountered.",
+            processed: results.length,
+            error: error instanceof Error ? error.message : String(error)
+          })
+        );
+        break;
+      }
+    }
+
+    if (index < rows.length - 1) {
+      await sleep(delayMs);
     }
   }
 
