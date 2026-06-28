@@ -179,6 +179,38 @@ db.exec(`
     CONSTRAINT "TextSefariaComplement_sefariaReferenceId_fkey" FOREIGN KEY ("sefariaReferenceId") REFERENCES "SefariaReference" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "TextSefariaComplement_classificationRunId_fkey" FOREIGN KEY ("classificationRunId") REFERENCES "LlmTextClassification" ("id") ON DELETE SET NULL ON UPDATE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS "SefariaComplementAiReview" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "textSefariaComplementId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "model" TEXT NOT NULL,
+    "promptVersion" TEXT NOT NULL,
+    "prompt" JSONB NOT NULL,
+    "request" JSONB NOT NULL,
+    "response" JSONB,
+    "responseText" TEXT,
+    "providerRequestId" TEXT,
+    "inputTokens" INTEGER,
+    "cachedInputTokens" INTEGER,
+    "outputTokens" INTEGER,
+    "reasoningTokens" INTEGER,
+    "totalTokens" INTEGER,
+    "estimatedCostUsd" REAL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "error" TEXT,
+    "verdict" TEXT,
+    "score" INTEGER,
+    "issueTags" JSONB,
+    "rationale" TEXT,
+    "suggestedAction" TEXT,
+    "suggestedRef" TEXT,
+    "completedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "deletedAt" DATETIME,
+    CONSTRAINT "SefariaComplementAiReview_textSefariaComplementId_fkey" FOREIGN KEY ("textSefariaComplementId") REFERENCES "TextSefariaComplement" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  );
 `);
 
 if (!hasColumn("SefariaReference", "corpus")) {
@@ -315,6 +347,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS "TextSefariaComplement_classificationRunId_idx" ON "TextSefariaComplement"("classificationRunId");
   CREATE INDEX IF NOT EXISTS "TextSefariaComplement_deletedAt_idx" ON "TextSefariaComplement"("deletedAt");
   CREATE UNIQUE INDEX IF NOT EXISTS "TextSefariaComplement_paragraphId_sefariaReferenceId_classificationRunId_key" ON "TextSefariaComplement"("paragraphId", "sefariaReferenceId", "classificationRunId");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_textSefariaComplementId_idx" ON "SefariaComplementAiReview"("textSefariaComplementId");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_provider_model_idx" ON "SefariaComplementAiReview"("provider", "model");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_promptVersion_status_idx" ON "SefariaComplementAiReview"("promptVersion", "status");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_verdict_idx" ON "SefariaComplementAiReview"("verdict");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_score_idx" ON "SefariaComplementAiReview"("score");
+  CREATE INDEX IF NOT EXISTS "SefariaComplementAiReview_deletedAt_idx" ON "SefariaComplementAiReview"("deletedAt");
 `);
 
 db.exec(`

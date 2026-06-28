@@ -14,6 +14,7 @@
     "classify:auxiliary-text": "tsx scripts/classify-auxiliary-text.ts",
     "classify:sefaria-complements:openai-batch": "tsx scripts/classify-sefaria-complements-openai-batch.ts",
     "classify:sefaria-complements": "tsx scripts/classify-sefaria-complements.ts",
+    "review:sefaria-complements:groq-batch": "tsx scripts/review-sefaria-complements-groq-batch.ts",
     "check:sefaria:sacks-english": "tsx scripts/check-sacks-english-availability.ts",
     "ingest:sefaria:sacks": "tsx scripts/ingest-sefaria-rabbi-sacks.ts",
     "prisma:generate": "prisma generate",

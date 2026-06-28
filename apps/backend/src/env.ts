@@ -11,7 +11,10 @@ const envSchema = z.object({
   OPENAI_COMPLEMENT_SERVICE_TIER: z.enum(["auto", "default", "flex", "priority"]).default("flex"),
   OPENAI_COMPLEMENT_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high", "xhigh"]).default("low"),
   OPENAI_COMPLEMENT_PROMPT_CACHE_RETENTION: z.enum(["in_memory", "24h"]).default("24h"),
-  OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(3000)
+  OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(3000),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_BASE_URL: z.string().url().default("https://api.groq.com/openai/v1"),
+  GROQ_SEFARIA_REVIEW_MODEL: z.string().default("openai/gpt-oss-120b")
 });
 
 export const env = envSchema.parse(process.env);

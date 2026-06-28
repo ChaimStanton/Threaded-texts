@@ -194,11 +194,51 @@ model TextSefariaComplement {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
+  aiReviews   SefariaComplementAiReview[]
 
   @@unique([paragraphId, sefariaReferenceId, classificationRunId])
   @@index([paragraphId])
   @@index([sefariaReferenceId])
   @@index([classificationRunId])
+  @@index([deletedAt])
+}
+
+model SefariaComplementAiReview {
+  id          String   @id @default(cuid())
+  textSefariaComplementId String
+  textSefariaComplement   TextSefariaComplement @relation(fields: [textSefariaComplementId], references: [id])
+  provider    String
+  model       String
+  promptVersion String
+  prompt      Json
+  request     Json
+  response    Json?
+  responseText String?
+  providerRequestId String?
+  inputTokens Int?
+  cachedInputTokens Int?
+  outputTokens Int?
+  reasoningTokens Int?
+  totalTokens Int?
+  estimatedCostUsd Float?
+  status      String   @default("pending")
+  error       String?
+  verdict     String?
+  score       Int?
+  issueTags   Json?
+  rationale   String?
+  suggestedAction String?
+  suggestedRef String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([textSefariaComplementId])
+  @@index([provider, model])
+  @@index([promptVersion, status])
+  @@index([verdict])
+  @@index([score])
   @@index([deletedAt])
 }
 
