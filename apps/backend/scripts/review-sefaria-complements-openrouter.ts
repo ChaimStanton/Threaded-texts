@@ -47,6 +47,16 @@ function parseJsonObject(value: string) {
   return JSON.parse(fenced ? fenced[1] : trimmed);
 }
 
+function getChatCompletionText(response: any) {
+  const text = response.choices?.[0]?.message?.content;
+
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error(`OpenRouter response did not include choices[0].message.content: ${JSON.stringify(response)}`);
+  }
+
+  return text;
+}
+
 function flattenSefariaText(value: string | string[] | undefined): string | undefined {
   if (typeof value === "string") {
     return value.trim() || undefined;
@@ -177,9 +187,11 @@ async function runReviews() {
       maxTokens,
       responseFormat: "json_object"
     };
+    let response: any;
+    let responseText: string | undefined;
 
     try {
-      const response = await openrouter.chat.completions.create({
+      response = await openrouter.chat.completions.create({
         model,
         messages: [
           {
@@ -195,7 +207,7 @@ async function runReviews() {
         max_tokens: maxTokens,
         response_format: { type: "json_object" }
       });
-      const responseText = response.choices[0]?.message?.content ?? "";
+      responseText = getChatCompletionText(response);
       const parsed = ReviewSchema.parse(parseJsonObject(responseText));
       const completed = await recordSefariaComplementAiReview({
         textSefariaComplementId: row.id,
@@ -230,6 +242,8 @@ async function runReviews() {
         promptVersion: SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
         prompt,
         request,
+        response: response as any,
+        responseText,
         status: "failed",
         error: error instanceof Error ? error.message : String(error),
         completedAt: new Date()
