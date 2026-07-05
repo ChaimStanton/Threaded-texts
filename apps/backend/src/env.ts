@@ -16,7 +16,10 @@ const envSchema = z.object({
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
   OPENROUTER_HTTP_REFERER: z.string().url().optional(),
   OPENROUTER_APP_TITLE: z.string().default("LSJS Sacks"),
-  OPENROUTER_SEFARIA_REVIEW_MODEL: z.string().default("openai/gpt-oss-120b:free")
+  OPENROUTER_SEFARIA_REVIEW_MODEL: z.string().default("openai/gpt-oss-120b:free"),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_BASE_URL: z.string().url().default("https://api.groq.com/openai/v1"),
+  GROQ_SEFARIA_REVIEW_MODEL: z.string().default("llama-3.3-70b-versatile")
 });
 
 export const env = envSchema.parse(process.env);
