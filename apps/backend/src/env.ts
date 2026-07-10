@@ -19,7 +19,10 @@ const envSchema = z.object({
   OPENROUTER_SEFARIA_REVIEW_MODEL: z.string().default("openai/gpt-oss-120b:free"),
   GROQ_API_KEY: z.string().optional(),
   GROQ_BASE_URL: z.string().url().default("https://api.groq.com/openai/v1"),
-  GROQ_SEFARIA_REVIEW_MODEL: z.string().default("llama-3.3-70b-versatile")
+  GROQ_SEFARIA_REVIEW_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  TOGETHER_API_KEY: z.string().optional(),
+  TOGETHER_BASE_URL: z.string().url().default("https://api.together.ai/v1"),
+  TOGETHER_SEFARIA_REVIEW_MODEL: z.string().default("meta-llama/Llama-3.3-70B-Instruct-Turbo")
 });
 
 export const env = envSchema.parse(process.env);

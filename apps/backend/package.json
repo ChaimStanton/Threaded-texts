@@ -17,6 +17,7 @@
     "review:sefaria-complements:openrouter": "tsx scripts/review-sefaria-complements-openrouter.ts",
     "review:sefaria-complements:groq": "tsx scripts/review-sefaria-complements-groq.ts",
     "review:sefaria-complements:groq-batch": "tsx scripts/review-sefaria-complements-groq-batch.ts",
+    "review:sefaria-complements:together-batch": "tsx scripts/review-sefaria-complements-together-batch.ts",
     "check:sefaria:sacks-english": "tsx scripts/check-sacks-english-availability.ts",
     "ingest:sefaria:sacks": "tsx scripts/ingest-sefaria-rabbi-sacks.ts",
     "prisma:generate": "prisma generate",
