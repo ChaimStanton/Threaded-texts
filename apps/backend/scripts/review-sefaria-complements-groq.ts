@@ -109,6 +109,40 @@ async function getSourceText(ref: string) {
   }
 }
 
+async function getNeighboringParagraphs(textUnit: {
+  bookId: string;
+  language: string;
+  chapter: number;
+  paragraph: number;
+}) {
+  const baseWhere = {
+    bookId: textUnit.bookId,
+    language: textUnit.language,
+    deletedAt: null,
+    isAuxiliary: false,
+    chapterRef: { deletedAt: null, isNonMainText: false }
+  };
+  const select = { ref: true, text: true };
+  const previous = await prisma.textUnit.findFirst({
+    where: {
+      ...baseWhere,
+      OR: [{ chapter: { lt: textUnit.chapter } }, { chapter: textUnit.chapter, paragraph: { lt: textUnit.paragraph } }]
+    },
+    orderBy: [{ chapter: "desc" }, { paragraph: "desc" }],
+    select
+  });
+  const next = await prisma.textUnit.findFirst({
+    where: {
+      ...baseWhere,
+      OR: [{ chapter: { gt: textUnit.chapter } }, { chapter: textUnit.chapter, paragraph: { gt: textUnit.paragraph } }]
+    },
+    orderBy: [{ chapter: "asc" }, { paragraph: "asc" }],
+    select
+  });
+
+  return { previous, next };
+}
+
 function createGroqClient() {
   if (!env.GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is required to review Sefaria complements with Groq.");
@@ -155,7 +189,12 @@ async function selectRows() {
     },
     include: {
       sefariaReference: true,
-      textUnit: true
+      textUnit: {
+        include: {
+          book: true,
+          chapterRef: true
+        }
+      }
     },
     orderBy: [{ confidence: "asc" }, { createdAt: "asc" }],
     take: limit
@@ -195,9 +234,17 @@ async function runReviews() {
 
   for (const [index, row] of rows.entries()) {
     const sefariaText = await getSourceText(row.sefariaReference.ref);
+    const neighboringParagraphs = await getNeighboringParagraphs(row.textUnit);
     const prompt = buildSefariaComplementReviewPrompt({
+      bookTitle: row.textUnit.book.title,
+      chapterRef: row.textUnit.chapterRef?.ref,
+      chapterTitle: row.textUnit.chapterRef?.title,
       paragraphRef: row.textUnit.ref,
       paragraphText: row.textUnit.text,
+      previousParagraphRef: neighboringParagraphs.previous?.ref,
+      previousParagraphText: neighboringParagraphs.previous?.text,
+      nextParagraphRef: neighboringParagraphs.next?.ref,
+      nextParagraphText: neighboringParagraphs.next?.text,
       sefariaRef: row.sefariaReference.ref,
       sefariaText,
       topic: row.topic,

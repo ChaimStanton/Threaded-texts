@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
 
-export const SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION = "sefaria-complement-review-v1";
+export const SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION = "sefaria-complement-review-v2";
 
 export const SEFARIA_COMPLEMENT_REVIEW_VERDICTS = ["accept", "borderline", "reject"] as const;
 
@@ -17,8 +17,15 @@ export type SefariaComplementReviewResult = {
 };
 
 export function buildSefariaComplementReviewPrompt(input: {
+  bookTitle?: string | null;
+  chapterRef?: string | null;
+  chapterTitle?: string | null;
   paragraphRef: string;
   paragraphText: string;
+  previousParagraphRef?: string | null;
+  previousParagraphText?: string | null;
+  nextParagraphRef?: string | null;
+  nextParagraphText?: string | null;
   sefariaRef: string;
   sefariaText?: string;
   topic?: string | null;
@@ -58,8 +65,9 @@ export function buildSefariaComplementReviewPrompt(input: {
     ],
     instructions: [
       "Be stricter than the original recommender.",
-      "A good complement should help a reader move from the classical source into the Rabbi Sacks paragraph.",
-      "Reject matches that share only a word, mood, named place, or generic theme.",
+      "A good complement should help a reader move from the classical source into the target Rabbi Sacks paragraph.",
+      "Use the previous and next Sacks paragraphs only to understand local argument flow; judge the target paragraph's proposed source, not the neighboring paragraphs.",
+      "Reject matches that share only a word, mood, named place, generic theme, or fit only the neighboring context.",
       "Prefer exact source fit over famous or frequently used anchors.",
       "If the Sefaria source text is missing, use the ref, topic, and rationale cautiously; mark missing_source_text.",
       "Return only JSON matching outputSchema."
@@ -73,8 +81,25 @@ export function buildSefariaComplementReviewPrompt(input: {
       suggestedRef: "optional tighter replacement Sefaria ref"
     },
     candidate: {
+      bookTitle: input.bookTitle ?? null,
+      chapterRef: input.chapterRef ?? null,
+      chapterTitle: input.chapterTitle ?? null,
+      previousParagraph:
+        input.previousParagraphRef || input.previousParagraphText
+          ? {
+              ref: input.previousParagraphRef ?? null,
+              text: input.previousParagraphText ?? null
+            }
+          : null,
       paragraphRef: input.paragraphRef,
       paragraphText: input.paragraphText,
+      nextParagraph:
+        input.nextParagraphRef || input.nextParagraphText
+          ? {
+              ref: input.nextParagraphRef ?? null,
+              text: input.nextParagraphText ?? null
+            }
+          : null,
       sefariaRef: input.sefariaRef,
       sefariaText: input.sefariaText ?? null,
       originalTopic: input.topic ?? null,
