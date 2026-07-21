@@ -144,3 +144,28 @@ npm --workspace @lsjs-sacks/backend run check:sefaria:sacks-english
 ```
 
 Only classify when `englishOnlyTargetsReady` contains one or more target works. If it is empty, Sefaria still has no English body text for the requested books and the loop should make no OpenAI calls.
+
+## Hebrew Publication Corpus Checked 2026-07-13
+
+The complete local Hebrew publication corpus was rechecked against Sefaria for the three target books:
+
+| Sefaria work | Sections | Hebrew segments | Model-eligible Sacks paragraphs |
+| --- | ---: | ---: | ---: |
+| `Not in God's Name; Confronting Religious Violence` | 19 | 1,183 | 910 |
+| `Radical Then, Radical Now` | 18 | 600 | 552 |
+| `The Home We Build Together; Recreating Society` | 23 | 1,045 | 961 |
+
+The publication reader intentionally includes every ordered section and segment, including front matter and back matter. Model processing uses `src/text/sacksProcessingEligibility.ts` and has narrower authorship rules:
+
+- Include the three Sacks paragraphs in `Introduction to Hebrew Edition` for *Not in God's Name*.
+- Exclude the exact duplicate segments `Dualism:74` and `The Scapegoat:13` from processing.
+- Include substantive Sacks preface prose through `Preface:22` for *Radical Then, Radical Now*.
+- Exclude the complete *Radical Then, Radical Now* epilogue because it is by Micah Goodman.
+- Continue excluding auxiliary rows and generic non-main sections from recommendation generation.
+
+Run the reproducible integrity checks with:
+
+```sh
+npm --workspace @lsjs-sacks/backend run prune:sefaria:sacks-complements
+npm --workspace @lsjs-sacks/backend run check:publication:sacks
+```

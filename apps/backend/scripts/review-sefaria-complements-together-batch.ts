@@ -6,12 +6,17 @@ import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { env } from "../src/env.js";
 import {
+  SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS,
   SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
   SEFARIA_COMPLEMENT_REVIEW_VERDICTS,
   buildSefariaComplementReviewPrompt,
   recordSefariaComplementAiReview
 } from "../src/repositories/sefariaComplementReviews.js";
 import { getSefariaText } from "../src/sefaria/client.js";
+import {
+  buildSacksProcessingEligibilityWhere,
+  SACKS_TARGET_BOOK_SLUGS
+} from "../src/text/sacksProcessingEligibility.js";
 
 const prisma = new PrismaClient();
 
@@ -187,11 +192,9 @@ async function getNeighboringParagraphs(textUnit: {
   paragraph: number;
 }) {
   const baseWhere = {
+    ...buildSacksProcessingEligibilityWhere(),
     bookId: textUnit.bookId,
     language: textUnit.language,
-    deletedAt: null,
-    isAuxiliary: false,
-    chapterRef: { deletedAt: null, isNonMainText: false }
   };
   const select = { ref: true, text: true };
   const previous = await prisma.textUnit.findFirst({
@@ -241,20 +244,20 @@ async function selectRows() {
       confidence: confidenceFilter,
       sefariaReference: { deletedAt: null },
       textUnit: {
-        deletedAt: null,
-        isAuxiliary: false,
-        book: {
-          deletedAt: null,
-          slug: bookSlug
-        },
-        chapterRef: { deletedAt: null, isNonMainText: false }
+        ...buildSacksProcessingEligibilityWhere(bookSlug),
+        ...(bookSlug
+          ? {}
+          : {
+              book: {
+                deletedAt: null,
+                slug: { in: Object.values(SACKS_TARGET_BOOK_SLUGS) }
+              }
+            })
       },
       aiReviews: {
         none: {
           deletedAt: null,
-          provider,
-          model,
-          promptVersion: SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
+          promptVersion: { in: [...SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS] },
           status: { in: ["pending", "completed"] }
         }
       }
@@ -486,17 +489,20 @@ async function importOutputLine(output: any) {
 
 async function importBatch(batchIdToImport: string) {
   const batch = getBatchObject(await retrieveBatch(batchIdToImport));
+  const terminalStatuses = ["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
 
-  if (batch.status !== "COMPLETED" || !batch.output_file_id) {
+  if (!terminalStatuses.includes(batch.status)) {
     console.log(JSON.stringify({ imported: false, batch }, null, 2));
     return false;
   }
 
   const results = [];
-  const outputText = await togetherText(`/files/${encodeURIComponent(batch.output_file_id)}/content`);
+  if (batch.output_file_id) {
+    const outputText = await togetherText(`/files/${encodeURIComponent(batch.output_file_id)}/content`);
 
-  for (const line of outputText.split(/\r?\n/).filter(Boolean)) {
-    results.push(await importOutputLine(JSON.parse(line)));
+    for (const line of outputText.split(/\r?\n/).filter(Boolean)) {
+      results.push(await importOutputLine(JSON.parse(line)));
+    }
   }
 
   if (batch.error_file_id) {
@@ -507,7 +513,22 @@ async function importBatch(batchIdToImport: string) {
     }
   }
 
-  console.log(JSON.stringify({ imported: true, batchId: batch.id, results }, null, 2));
+  const residual = await prisma.sefariaComplementAiReview.updateMany({
+    where: { providerRequestId: batch.id, status: "pending", deletedAt: null },
+    data: {
+      status: "failed",
+      error: `Together batch ended with status ${batch.status} without an imported output line.`,
+      completedAt: new Date()
+    }
+  });
+
+  console.log(
+    JSON.stringify(
+      { imported: true, batchId: batch.id, terminalStatus: batch.status, residualFailed: residual.count, results },
+      null,
+      2
+    )
+  );
   return true;
 }
 
@@ -532,11 +553,14 @@ async function pollBatch(batchIdToPoll: string) {
     }
 
     if (["FAILED", "EXPIRED", "CANCELLED"].includes(batch.status)) {
-      return;
+      await importBatch(batchIdToPoll);
+      throw new Error(`Together batch ${batch.id} ended with status ${batch.status}.`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
+
+  throw new Error(`Together batch ${batchIdToPoll} is still pending after ${maxWaitMs}ms.`);
 }
 
 try {

@@ -9,6 +9,7 @@ tasks:
     command: npm run build
     inputs:
       - src/**/*
+      - public/**/*
       - index.html
       - package.json
       - tsconfig.json

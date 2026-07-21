@@ -8,12 +8,14 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../src/env.js";
 import {
+  SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS,
   SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
   SEFARIA_COMPLEMENT_REVIEW_VERDICTS,
   buildSefariaComplementReviewPrompt,
   recordSefariaComplementAiReview
 } from "../src/repositories/sefariaComplementReviews.js";
 import { getSefariaText } from "../src/sefaria/client.js";
+import { buildSacksProcessingEligibilityWhere } from "../src/text/sacksProcessingEligibility.js";
 
 const prisma = new PrismaClient();
 
@@ -116,11 +118,9 @@ async function getNeighboringParagraphs(textUnit: {
   paragraph: number;
 }) {
   const baseWhere = {
+    ...buildSacksProcessingEligibilityWhere(),
     bookId: textUnit.bookId,
     language: textUnit.language,
-    deletedAt: null,
-    isAuxiliary: false,
-    chapterRef: { deletedAt: null, isNonMainText: false }
   };
   const select = { ref: true, text: true };
   const previous = await prisma.textUnit.findFirst({
@@ -170,20 +170,14 @@ async function selectRows() {
       confidence: confidenceFilter,
       sefariaReference: { deletedAt: null },
       textUnit: {
-        deletedAt: null,
-        isAuxiliary: false,
-        book: {
-          deletedAt: null,
-          slug: bookSlug
-        },
-        chapterRef: { deletedAt: null, isNonMainText: false }
+        ...buildSacksProcessingEligibilityWhere(bookSlug)
       },
       aiReviews: {
         none: {
           deletedAt: null,
           provider,
           model,
-          promptVersion: SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
+          promptVersion: { in: [...SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS] },
           status: { in: ["pending", "completed"] }
         }
       }
@@ -490,11 +484,21 @@ async function pollBatch(batchIdToPoll: string) {
     }
 
     if (["failed", "expired", "cancelled", "cancelling"].includes(batch.status)) {
-      return;
+      await prisma.sefariaComplementAiReview.updateMany({
+        where: { providerRequestId: batch.id, status: "pending", deletedAt: null },
+        data: {
+          status: "failed",
+          error: `Groq batch ended with status ${batch.status}.`,
+          completedAt: new Date()
+        }
+      });
+      throw new Error(`Groq batch ${batch.id} ended with status ${batch.status}.`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
+
+  throw new Error(`Groq batch ${batchIdToPoll} is still pending after ${maxWaitMs}ms.`);
 }
 
 try {

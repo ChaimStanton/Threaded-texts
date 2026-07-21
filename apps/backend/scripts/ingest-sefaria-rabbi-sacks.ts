@@ -24,6 +24,8 @@ type TextSegment = {
   text: string;
 };
 
+type TextLanguage = "en" | "he";
+
 type SefariaTextResponse = {
   ref?: string;
   text?: unknown;
@@ -185,6 +187,62 @@ async function upsertAuthor() {
   });
 }
 
+async function importSegments({
+  book,
+  chapterId,
+  leafIndex,
+  chapterRef,
+  language,
+  segments,
+  version
+}: {
+  book: Book;
+  chapterId: string;
+  leafIndex: number;
+  chapterRef: string;
+  language: TextLanguage;
+  segments: TextSegment[];
+  version?: string;
+}) {
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+    const paragraph = index + 1;
+    const segmentPath = segment.path.length > 0 ? segment.path.join(".") : String(paragraph);
+    const ref = `${chapterRef}:${segmentPath}`;
+
+    await prisma.textUnit.upsert({
+      where: {
+        paragraphId: `sefaria:${book.slug}:${leafIndex}:${segmentPath}:${language}`
+      },
+      create: {
+        paragraphId: `sefaria:${book.slug}:${leafIndex}:${segmentPath}:${language}`,
+        bookId: book.id,
+        chapterId,
+        chapter: leafIndex,
+        verse: segment.path[0],
+        paragraph,
+        ref,
+        text: segment.text,
+        language,
+        version,
+        isAuxiliary: false
+      },
+      update: {
+        bookId: book.id,
+        chapterId,
+        chapter: leafIndex,
+        verse: segment.path[0],
+        paragraph,
+        ref,
+        text: segment.text,
+        language,
+        version,
+        deletedAt: null
+      }
+    });
+  }
+}
+
 async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; leafIndex: number }) {
   const data = await fetchJson<SefariaTextResponse>(`/texts/${encodeURIComponent(leaf.ref)}?context=0`);
   const english = flattenText(data.text);
@@ -193,9 +251,6 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
   if (REQUIRE_ENGLISH && english.length === 0) {
     return { imported: 0, skippedReason: "missing_english_text" };
   }
-
-  const language = english.length > 0 ? "en" : "he";
-  const segments = english.length > 0 ? english : hebrew;
 
   const chapter = await prisma.chapter.upsert({
     where: {
@@ -221,45 +276,36 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
     }
   });
 
-  for (let index = 0; index < segments.length; index += 1) {
-    const segment = segments[index];
-    const paragraph = index + 1;
-    const segmentPath = segment.path.length > 0 ? segment.path.join(".") : String(paragraph);
-    const ref = `${chapter.ref}:${segmentPath}`;
+  const version = data.versionTitle || data.versionSource || undefined;
+  let imported = 0;
 
-    await prisma.textUnit.upsert({
-      where: {
-        paragraphId: `sefaria:${book.slug}:${leafIndex}:${segmentPath}:${language}`
-      },
-      create: {
-        paragraphId: `sefaria:${book.slug}:${leafIndex}:${segmentPath}:${language}`,
-        bookId: book.id,
-        chapterId: chapter.id,
-        chapter: leafIndex,
-        verse: segment.path[0],
-        paragraph,
-        ref,
-        text: segment.text,
-        language,
-        version: data.versionTitle || data.versionSource || undefined,
-        isAuxiliary: false
-      },
-      update: {
-        bookId: book.id,
-        chapterId: chapter.id,
-        chapter: leafIndex,
-        verse: segment.path[0],
-        paragraph,
-        ref,
-        text: segment.text,
-        language,
-        version: data.versionTitle || data.versionSource || undefined,
-        deletedAt: null
-      }
+  if (english.length > 0) {
+    await importSegments({
+      book,
+      chapterId: chapter.id,
+      leafIndex,
+      chapterRef: chapter.ref,
+      language: "en",
+      segments: english,
+      version
     });
+    imported += english.length;
   }
 
-  return { imported: segments.length };
+  if (!REQUIRE_ENGLISH && hebrew.length > 0) {
+    await importSegments({
+      book,
+      chapterId: chapter.id,
+      leafIndex,
+      chapterRef: chapter.ref,
+      language: "he",
+      segments: hebrew,
+      version
+    });
+    imported += hebrew.length;
+  }
+
+  return { imported };
 }
 
 async function main() {

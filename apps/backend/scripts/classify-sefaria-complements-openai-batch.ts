@@ -16,6 +16,7 @@ import {
   parseComplementClassificationResponseText,
   toStoredComplements
 } from "../src/services/sefariaComplementClassifier.js";
+import { buildSacksProcessingEligibilityWhere } from "../src/text/sacksProcessingEligibility.js";
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,7 @@ const limit = Number(args.get("limit") ?? 1);
 const model = args.get("model") ?? env.OPENAI_COMPLEMENT_MODEL;
 const language = args.get("language") ?? "en";
 const bookSlug = args.get("book-slug");
-const maxOutputTokens = Number(args.get("max-output-tokens") ?? 1200);
+const maxOutputTokens = Number(args.get("max-output-tokens") ?? env.OPENAI_COMPLEMENT_MAX_OUTPUT_TOKENS);
 const pollIntervalMs = Number(args.get("poll-interval-ms") ?? 15000);
 const maxWaitMs = Number(args.get("max-wait-ms") ?? 180000);
 
@@ -77,14 +78,8 @@ async function writeJsonl(path: string, lines: unknown[]) {
 async function submitBatch() {
   const rows = await prisma.textUnit.findMany({
     where: {
+      ...buildSacksProcessingEligibilityWhere(bookSlug),
       language,
-      isAuxiliary: false,
-      deletedAt: null,
-      book: {
-        deletedAt: null,
-        slug: bookSlug
-      },
-      chapterRef: { deletedAt: null, isNonMainText: false },
       classificationRuns: {
         none: {
           deletedAt: null,
@@ -322,11 +317,21 @@ async function pollBatch(batchIdToPoll: string) {
     }
 
     if (["failed", "expired", "cancelled"].includes(batch.status)) {
-      return;
+      await prisma.llmTextClassification.updateMany({
+        where: { providerRequestId: batch.id, status: "pending", deletedAt: null },
+        data: {
+          status: "failed",
+          error: `OpenAI batch ended with status ${batch.status}.`,
+          completedAt: new Date()
+        }
+      });
+      throw new Error(`OpenAI batch ${batch.id} ended with status ${batch.status}.`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
+
+  throw new Error(`OpenAI batch ${batchIdToPoll} is still pending after ${maxWaitMs}ms.`);
 }
 
 try {

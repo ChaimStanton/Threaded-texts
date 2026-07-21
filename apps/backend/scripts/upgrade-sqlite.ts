@@ -319,7 +319,8 @@ db.exec(`
   END
   WHERE "deletedAt" IS NULL;
 
-  CREATE UNIQUE INDEX IF NOT EXISTS "text_ref_key" ON "text"("ref");
+  DROP INDEX IF EXISTS "text_ref_key";
+  CREATE UNIQUE INDEX IF NOT EXISTS "text_ref_language_key" ON "text"("ref", "language");
   CREATE INDEX IF NOT EXISTS "text_bookId_idx" ON "text"("bookId");
   CREATE UNIQUE INDEX IF NOT EXISTS "Chapter_bookId_number_key" ON "Chapter"("bookId", "number");
   CREATE UNIQUE INDEX IF NOT EXISTS "Chapter_bookId_ref_key" ON "Chapter"("bookId", "ref");

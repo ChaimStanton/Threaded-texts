@@ -4,6 +4,7 @@ import {
   classifySefariaComplements,
   classifySefariaComplementsBatch
 } from "../src/services/sefariaComplementClassifier.js";
+import { buildSacksProcessingEligibilityWhere } from "../src/text/sacksProcessingEligibility.js";
 
 const prisma = new PrismaClient();
 
@@ -28,16 +29,10 @@ const dryRun = args.get("dry-run") === "true";
 
 const rows = await prisma.textUnit.findMany({
   where: {
+    ...buildSacksProcessingEligibilityWhere(bookSlug),
     paragraphId: paragraphId ? paragraphId : undefined,
     language,
-    isAuxiliary: false,
-    deletedAt: null,
     bookId: bookId ? bookId : undefined,
-    book: {
-      deletedAt: null,
-      slug: bookSlug ? bookSlug : undefined
-    },
-    chapterRef: { deletedAt: null, isNonMainText: false },
     classificationRuns: {
       none: {
         deletedAt: null,

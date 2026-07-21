@@ -98,7 +98,7 @@ model TextUnit {
   paragraph   Int
   /// Full Sefaria segment ref, including the final segment suffix, e.g.
   /// "Arguments for the Sake of Heaven, PART II; PAST, Chapter 2; A Religion or a Nation?:27"
-  ref         String   @unique
+  ref         String
   text        String
   language    String   @default("en")
   version     String?
@@ -116,6 +116,7 @@ model TextUnit {
   @@index([bookId, chapter, verse, paragraph])
   @@index([isAuxiliary])
   @@index([deletedAt])
+  @@unique([ref, language])
   @@map("text")
 }
 

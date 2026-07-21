@@ -1,6 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
-import { listBooks, listChapters, listTextUnits, upsertBook, upsertChapter, upsertTextUnit } from "../repositories/texts.js";
+import {
+  getPublicationBook,
+  listBooks,
+  listChapters,
+  listTextUnits,
+  upsertBook,
+  upsertChapter,
+  upsertTextUnit
+} from "../repositories/texts.js";
 
 const upsertBookSchema = z.object({
   slug: z.string().min(1),
@@ -30,6 +38,10 @@ const upsertChapterSchema = z.object({
   title: z.string().optional(),
   heTitle: z.string().optional(),
   isNonMainText: z.boolean().optional()
+});
+
+const publicationQuerySchema = z.object({
+  language: z.enum(["all", "en", "he"]).default("all")
 });
 
 export const textsRouter = Router();
@@ -66,6 +78,22 @@ textsRouter.get("/books/:bookId/units", async (req, res, next) => {
   try {
     const units = await listTextUnits(req.params.bookId);
     res.json({ units });
+  } catch (error) {
+    next(error);
+  }
+});
+
+textsRouter.get("/books/:bookId/publication", async (req, res, next) => {
+  try {
+    const { language } = publicationQuerySchema.parse(req.query);
+    const book = await getPublicationBook(req.params.bookId, language);
+
+    if (!book) {
+      res.status(404).json({ error: "Book not found" });
+      return;
+    }
+
+    res.json({ book });
   } catch (error) {
     next(error);
   }

@@ -89,6 +89,33 @@ export async function listTextUnits(bookId: string) {
   });
 }
 
+export async function getPublicationBook(bookId: string, language: "all" | "en" | "he" = "all") {
+  const textUnitWhere = {
+    ...activeTextUnitWhere,
+    ...(language === "all" ? {} : { language })
+  } satisfies Prisma.TextUnitWhereInput;
+
+  return prisma.book.findFirst({
+    where: {
+      ...activeBookWhere,
+      id: bookId
+    },
+    include: {
+      author: true,
+      chapters: {
+        where: activeChapterWhere,
+        orderBy: { number: "asc" },
+        include: {
+          textUnits: {
+            where: textUnitWhere,
+            orderBy: [{ verse: "asc" }, { paragraph: "asc" }]
+          }
+        }
+      }
+    }
+  });
+}
+
 export async function upsertTextUnit(input: {
   paragraphId: string;
   bookId: string;

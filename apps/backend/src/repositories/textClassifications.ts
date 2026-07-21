@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
+import { buildSacksProcessingEligibilityWhere } from "../text/sacksProcessingEligibility.js";
 
 export const ALLOWED_COMPLEMENT_CORPORA = ["tanach", "gemara", "mishna", "shulchan_aruch", "rambam"] as const;
 
 export type ComplementCorpus = (typeof ALLOWED_COMPLEMENT_CORPORA)[number];
+export type ComplementReviewOutcome = "all" | "accept" | "borderline" | "reject" | "pending" | "failed" | "unreviewed";
 
 export const COMPLEMENT_CLASSIFICATION_PROMPT_VERSION = "complementary-sefaria-refs-v1";
 
@@ -225,9 +227,7 @@ export async function listTextSefariaComplements(paragraphId: string) {
       deletedAt: null,
       sefariaReference: { deletedAt: null },
       textUnit: {
-        deletedAt: null,
-        isAuxiliary: false,
-        chapterRef: { deletedAt: null, isNonMainText: false }
+        ...buildSacksProcessingEligibilityWhere()
       }
     },
     include: {
@@ -242,6 +242,7 @@ export async function listSefariaReferenceConnections(input: {
   query?: string;
   corpus?: ComplementCorpus;
   minConfidence?: number;
+  reviewOutcome?: ComplementReviewOutcome;
   limit?: number;
 }) {
   const trimmedQuery = input.query?.trim();
@@ -249,13 +250,11 @@ export async function listSefariaReferenceConnections(input: {
     deletedAt: null,
     confidence: input.minConfidence === undefined ? undefined : { gte: input.minConfidence },
     textUnit: {
-      deletedAt: null,
-      isAuxiliary: false,
-      chapterRef: { deletedAt: null, isNonMainText: false }
+      ...buildSacksProcessingEligibilityWhere()
     }
   } satisfies Prisma.TextSefariaComplementWhereInput;
 
-  return prisma.sefariaReference.findMany({
+  const sources = await prisma.sefariaReference.findMany({
     where: {
       deletedAt: null,
       corpus: input.corpus,
@@ -293,6 +292,11 @@ export async function listSefariaReferenceConnections(input: {
         where: complementWhere,
         include: {
           classificationRun: true,
+          aiReviews: {
+            where: { deletedAt: null },
+            orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+            take: 1
+          },
           textUnit: {
             include: {
               book: true,
@@ -301,10 +305,51 @@ export async function listSefariaReferenceConnections(input: {
           }
         },
         orderBy: [{ rank: "asc" }, { confidence: "desc" }, { createdAt: "asc" }],
-        take: 6
+        ...(input.reviewOutcome && input.reviewOutcome !== "all" ? {} : { take: 6 })
       }
     },
-    orderBy: [{ ref: "asc" }],
-    take: input.limit ?? 50
+    orderBy: [{ ref: "asc" }]
   });
+
+  const reviewFilteredSources = sources
+    .map((source) => {
+      const passages = source.textComplements
+        .filter((passage) => matchesComplementReviewOutcome(passage.aiReviews[0], input.reviewOutcome))
+        .slice(0, 6);
+
+      return {
+        ...source,
+        textComplements: passages,
+        _count: {
+          ...source._count,
+          textComplements: passages.length
+        }
+      };
+    })
+    .filter((source) => source.textComplements.length > 0);
+
+  return reviewFilteredSources.slice(0, input.limit ?? 50);
+}
+
+function matchesComplementReviewOutcome(
+  review: { status: string; verdict: string | null } | undefined,
+  reviewOutcome?: ComplementReviewOutcome
+) {
+  if (!reviewOutcome || reviewOutcome === "all") {
+    return true;
+  }
+
+  if (reviewOutcome === "unreviewed") {
+    return !review;
+  }
+
+  if (!review) {
+    return false;
+  }
+
+  if (reviewOutcome === "pending" || reviewOutcome === "failed") {
+    return review.status === reviewOutcome;
+  }
+
+  return review.verdict === reviewOutcome;
 }

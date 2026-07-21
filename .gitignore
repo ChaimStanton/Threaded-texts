@@ -146,6 +146,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+apps/frontend/public/.nojekyll
+apps/frontend/public/data/
+output/
 
 # Moon local cache
 .moon/cache/

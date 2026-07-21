@@ -3,12 +3,14 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../src/env.js";
 import {
+  SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS,
   SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
   SEFARIA_COMPLEMENT_REVIEW_VERDICTS,
   buildSefariaComplementReviewPrompt,
   recordSefariaComplementAiReview
 } from "../src/repositories/sefariaComplementReviews.js";
 import { getSefariaText } from "../src/sefaria/client.js";
+import { buildSacksProcessingEligibilityWhere } from "../src/text/sacksProcessingEligibility.js";
 
 const prisma = new PrismaClient();
 
@@ -116,11 +118,9 @@ async function getNeighboringParagraphs(textUnit: {
   paragraph: number;
 }) {
   const baseWhere = {
+    ...buildSacksProcessingEligibilityWhere(),
     bookId: textUnit.bookId,
     language: textUnit.language,
-    deletedAt: null,
-    isAuxiliary: false,
-    chapterRef: { deletedAt: null, isNonMainText: false }
   };
   const select = { ref: true, text: true };
   const previous = await prisma.textUnit.findFirst({
@@ -169,20 +169,14 @@ async function selectRows() {
       confidence: confidenceFilter,
       sefariaReference: { deletedAt: null },
       textUnit: {
-        deletedAt: null,
-        isAuxiliary: false,
-        book: {
-          deletedAt: null,
-          slug: bookSlug
-        },
-        chapterRef: { deletedAt: null, isNonMainText: false }
+        ...buildSacksProcessingEligibilityWhere(bookSlug)
       },
       aiReviews: {
         none: {
           deletedAt: null,
           provider,
           model,
-          promptVersion: SEFARIA_COMPLEMENT_REVIEW_PROMPT_VERSION,
+          promptVersion: { in: [...SEFARIA_COMPLEMENT_ACCEPTED_REVIEW_PROMPT_VERSIONS] },
           status: { in: ["pending", "completed"] }
         }
       }

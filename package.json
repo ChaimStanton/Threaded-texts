@@ -1,5 +1,5 @@
 {
-  "name": "lsjs-sacks",
+  "name": "threaded-texts",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,6 +10,8 @@
     "dev": "moon run :dev",
     "build": "moon run :build",
     "check": "moon check",
+    "build:pages": "npm run export:static && npm --workspace @lsjs-sacks/frontend run build",
+    "export:static": "npm --workspace @lsjs-sacks/backend run export:static",
     "prisma:generate": "npm --workspace @lsjs-sacks/backend run prisma:generate",
     "prisma:migrate": "npm --workspace @lsjs-sacks/backend run prisma:migrate"
   },

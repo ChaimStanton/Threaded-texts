@@ -1,6 +1,6 @@
-# LSJS Sacks
+# Threaded Texts
 
-Node backend and React/MUI frontend for LSJS Sacks source work.
+Node backend and React/MUI frontend for connected source and study-text work.
 
 ## Stack
 
@@ -40,7 +40,7 @@ The frontend runs on `http://localhost:5173` and proxies `/api` to the backend o
 
 ## Sefaria complement classification
 
-Set `OPENAI_API_KEY` in `apps/backend/.env`. The default model is `gpt-5.2`; override with `OPENAI_COMPLEMENT_MODEL`.
+Set `OPENAI_API_KEY` in `apps/backend/.env`. The default model is `gpt-5.4`; override with `OPENAI_COMPLEMENT_MODEL`.
 
 Preview the request without calling the model:
 

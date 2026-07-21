@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { getClassificationProgress } from "../repositories/classificationProgress.js";
 import { ALLOWED_COMPLEMENT_CORPORA, listSefariaReferenceConnections } from "../repositories/textClassifications.js";
 import { createSourceNote, listSourceNotes, serializeSourceNote } from "../repositories/sourceNotes.js";
 import { getSefariaText } from "../sefaria/client.js";
@@ -17,7 +18,8 @@ const sourceConnectionsQuerySchema = z.object({
   q: z.string().optional(),
   corpus: z.enum(ALLOWED_COMPLEMENT_CORPORA).optional(),
   minConfidence: z.coerce.number().min(0).max(1).optional(),
-  limit: z.coerce.number().int().positive().max(100).default(50)
+  reviewOutcome: z.enum(["all", "accept", "borderline", "reject", "pending", "failed", "unreviewed"]).optional(),
+  limit: z.coerce.number().int().positive().max(10000).default(500)
 });
 
 export const sourcesRouter = Router();
@@ -48,6 +50,7 @@ sourcesRouter.get("/connections", async (req, res, next) => {
       query: input.q,
       corpus: input.corpus,
       minConfidence: input.minConfidence,
+      reviewOutcome: input.reviewOutcome,
       limit: input.limit
     });
 
@@ -68,6 +71,25 @@ sourcesRouter.get("/connections", async (req, res, next) => {
           rationale: connection.rationale,
           confidence: connection.confidence,
           rank: connection.rank,
+          latestReview: connection.aiReviews[0]
+            ? {
+                id: connection.aiReviews[0].id,
+                provider: connection.aiReviews[0].provider,
+                model: connection.aiReviews[0].model,
+                promptVersion: connection.aiReviews[0].promptVersion,
+                providerRequestId: connection.aiReviews[0].providerRequestId,
+                status: connection.aiReviews[0].status,
+                verdict: connection.aiReviews[0].verdict,
+                score: connection.aiReviews[0].score,
+                issueTags: connection.aiReviews[0].issueTags,
+                rationale: connection.aiReviews[0].rationale,
+                suggestedAction: connection.aiReviews[0].suggestedAction,
+                suggestedRef: connection.aiReviews[0].suggestedRef,
+                estimatedCostUsd: connection.aiReviews[0].estimatedCostUsd,
+                createdAt: connection.aiReviews[0].createdAt,
+                completedAt: connection.aiReviews[0].completedAt
+              }
+            : null,
           generatedBy: connection.classificationRun
             ? {
                 provider: connection.classificationRun.provider,
@@ -85,6 +107,7 @@ sourcesRouter.get("/connections", async (req, res, next) => {
           rabbiSacksRef: connection.textUnit.ref,
           rabbiSacksUrl: `https://www.sefaria.org/${connection.textUnit.ref.replaceAll(" ", "_").replaceAll(":", ".")}?lang=bi`,
           text: connection.textUnit.text,
+          language: connection.textUnit.language,
           book: {
             id: connection.textUnit.book.id,
             slug: connection.textUnit.book.slug,
@@ -102,6 +125,15 @@ sourcesRouter.get("/connections", async (req, res, next) => {
         }))
       }))
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+sourcesRouter.get("/classification-progress", async (_req, res, next) => {
+  try {
+    const books = await getClassificationProgress();
+    res.json({ books });
   } catch (error) {
     next(error);
   }
