@@ -70,37 +70,30 @@ function serializeSourceConnection(source: Awaited<ReturnType<typeof listSefaria
       rank: connection.rank,
       latestReview: connection.aiReviews[0]
         ? {
-            id: connection.aiReviews[0].id,
-            provider: connection.aiReviews[0].provider,
-            model: connection.aiReviews[0].model,
-            promptVersion: connection.aiReviews[0].promptVersion,
-            providerRequestId: connection.aiReviews[0].providerRequestId,
-            status: connection.aiReviews[0].status,
-            verdict: connection.aiReviews[0].verdict,
-            score: connection.aiReviews[0].score,
-            issueTags: connection.aiReviews[0].issueTags,
-            rationale: connection.aiReviews[0].rationale,
-            suggestedAction: connection.aiReviews[0].suggestedAction,
-            suggestedRef: connection.aiReviews[0].suggestedRef,
-            estimatedCostUsd: connection.aiReviews[0].estimatedCostUsd,
-            createdAt: connection.aiReviews[0].createdAt,
-            completedAt: connection.aiReviews[0].completedAt
-          }
-        : null,
+                id: connection.aiReviews[0].id,
+                provider: connection.aiReviews[0].provider,
+                model: connection.aiReviews[0].model,
+                promptVersion: connection.aiReviews[0].promptVersion,
+                status: connection.aiReviews[0].status,
+                verdict: connection.aiReviews[0].verdict,
+                score: connection.aiReviews[0].score,
+                issueTags: connection.aiReviews[0].issueTags,
+                rationale: connection.aiReviews[0].rationale,
+                suggestedAction: connection.aiReviews[0].suggestedAction,
+                suggestedRef: connection.aiReviews[0].suggestedRef,
+                createdAt: connection.aiReviews[0].createdAt,
+                completedAt: connection.aiReviews[0].completedAt
+              }
+            : null,
       generatedBy: connection.classificationRun
         ? {
-            provider: connection.classificationRun.provider,
-            model: connection.classificationRun.model,
-            promptVersion: connection.classificationRun.promptVersion,
-            providerRequestId: connection.classificationRun.providerRequestId,
-            inputTokens: connection.classificationRun.inputTokens,
-            outputTokens: connection.classificationRun.outputTokens,
-            totalTokens: connection.classificationRun.totalTokens,
-            estimatedCostUsd: connection.classificationRun.estimatedCostUsd,
-            createdAt: connection.classificationRun.createdAt,
-            completedAt: connection.classificationRun.completedAt
-          }
-        : null,
+                provider: connection.classificationRun.provider,
+                model: connection.classificationRun.model,
+                promptVersion: connection.classificationRun.promptVersion,
+                createdAt: connection.classificationRun.createdAt,
+                completedAt: connection.classificationRun.completedAt
+              }
+            : null,
       rabbiSacksRef: connection.textUnit.ref,
       rabbiSacksUrl: `https://www.sefaria.org/${connection.textUnit.ref.replaceAll(" ", "_").replaceAll(":", ".")}?lang=bi`,
       text: connection.textUnit.text,

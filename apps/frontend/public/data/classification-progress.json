@@ -1,0 +1,52 @@
+{
+  "books": [
+    {
+      "bookId": "cmqa5iij10002qevclxj9mnx0",
+      "slug": "sefaria-not-in-gods-name-confronting-religious-violence",
+      "title": "Not in God's Name; Confronting Religious Violence",
+      "eligibleParas": 920,
+      "completedClassification": 910,
+      "pendingClassification": 0,
+      "stillNeedsClassification": 10,
+      "suggestedLinks": 1952,
+      "qaReviewedLinks": 1952,
+      "linksNeedingQa": 0
+    },
+    {
+      "bookId": "cmpq07e3o0002qe6oevnucabl",
+      "slug": "sefaria-arguments-for-the-sake-of-heaven",
+      "title": "Arguments for the Sake of Heaven",
+      "eligibleParas": 712,
+      "completedClassification": 712,
+      "pendingClassification": 0,
+      "stillNeedsClassification": 0,
+      "suggestedLinks": 2970,
+      "qaReviewedLinks": 2969,
+      "linksNeedingQa": 1
+    },
+    {
+      "bookId": "cmpq0ivj001xuqe6olnwnz12l",
+      "slug": "sefaria-radical-then-radical-now",
+      "title": "Radical Then, Radical Now",
+      "eligibleParas": 552,
+      "completedClassification": 552,
+      "pendingClassification": 0,
+      "stillNeedsClassification": 0,
+      "suggestedLinks": 1182,
+      "qaReviewedLinks": 1182,
+      "linksNeedingQa": 0
+    },
+    {
+      "bookId": "cmpq0k40r023uqe6ova6me1lj",
+      "slug": "sefaria-the-home-we-build-together-recreating-society",
+      "title": "The Home We Build Together; Recreating Society",
+      "eligibleParas": 969,
+      "completedClassification": 969,
+      "pendingClassification": 0,
+      "stillNeedsClassification": 0,
+      "suggestedLinks": 1476,
+      "qaReviewedLinks": 1476,
+      "linksNeedingQa": 0
+    }
+  ]
+}

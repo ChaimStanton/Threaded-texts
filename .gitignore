@@ -146,8 +146,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
-apps/frontend/public/.nojekyll
-apps/frontend/public/data/
 apps/backend/prisma/dev.db
 output/
 
