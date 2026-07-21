@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma } from "../src/db.js";
@@ -12,13 +12,16 @@ import { listSourceNotes, serializeSourceNote } from "../src/repositories/source
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../..");
 const dataDir = path.join(repoRoot, "apps/frontend/public/data");
+const publicationBooksDir = path.join(dataDir, "publication-books");
 
 async function writeJson(name: string, data: unknown) {
   await writeFile(path.join(dataDir, name), `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
 async function main() {
+  await rm(dataDir, { recursive: true, force: true });
   await mkdir(dataDir, { recursive: true });
+  await mkdir(publicationBooksDir, { recursive: true });
 
   const [authors, books, articles, notes, sources, classificationProgress] = await Promise.all([
     listAuthors(),
@@ -36,16 +39,27 @@ async function main() {
     }))
   );
 
+  await Promise.all(
+    publicationBooks.map(async ({ bookId, book }) => {
+      if (!book) {
+        return;
+      }
+
+      await writeFile(
+        path.join(publicationBooksDir, `${encodeURIComponent(bookId)}.json`),
+        `${JSON.stringify({ book }, null, 2)}\n`,
+        "utf8"
+      );
+    })
+  );
+
   await Promise.all([
     writeJson("authors.json", { authors }),
     writeJson("books.json", { books }),
     writeJson("rabbi-sacks-articles.json", { articles }),
     writeJson("source-notes.json", { notes: notes.map(serializeSourceNote) }),
     writeJson("source-connections.json", { sources: sources.map(serializeSourceConnection) }),
-    writeJson("classification-progress.json", { books: classificationProgress }),
-    writeJson("publication-books.json", {
-      books: Object.fromEntries(publicationBooks.flatMap(({ bookId, book }) => (book ? [[bookId, book]] : [])))
-    })
+    writeJson("classification-progress.json", { books: classificationProgress })
   ]);
 
   await writeFile(path.join(repoRoot, "apps/frontend/public/.nojekyll"), "", "utf8");

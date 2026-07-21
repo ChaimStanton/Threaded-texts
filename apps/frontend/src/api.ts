@@ -189,6 +189,11 @@ function requestStaticJson<T>(name: string): Promise<T> {
   return request;
 }
 
+async function fetchStaticPublicationBook(bookId: string): Promise<PublicationBook | undefined> {
+  const data = await requestStaticJson<{ book: PublicationBook }>(`publication-books/${encodeURIComponent(bookId)}.json`);
+  return data.book;
+}
+
 function assertApiWriteAvailable() {
   if (import.meta.env.PROD) {
     throw new Error("This action requires the backend API and is unavailable in the static production site.");
@@ -299,8 +304,8 @@ export async function createBook(input: {
 
 export async function fetchTextUnits(bookId: string): Promise<TextUnit[]> {
   if (import.meta.env.PROD) {
-    const data = await requestStaticJson<{ books: Record<string, PublicationBook> }>("publication-books.json");
-    return data.books[bookId]?.chapters.flatMap((chapter) => chapter.textUnits) ?? [];
+    const book = await fetchStaticPublicationBook(bookId);
+    return book?.chapters.flatMap((chapter) => chapter.textUnits) ?? [];
   }
 
   const data = await requestJson<{ units: TextUnit[] }>(`/api/texts/books/${bookId}/units`);
@@ -309,8 +314,8 @@ export async function fetchTextUnits(bookId: string): Promise<TextUnit[]> {
 
 export async function fetchChapters(bookId: string): Promise<Chapter[]> {
   if (import.meta.env.PROD) {
-    const data = await requestStaticJson<{ books: Record<string, PublicationBook> }>("publication-books.json");
-    return data.books[bookId]?.chapters.map(({ textUnits: _textUnits, ...chapter }) => chapter) ?? [];
+    const book = await fetchStaticPublicationBook(bookId);
+    return book?.chapters.map(({ textUnits: _textUnits, ...chapter }) => chapter) ?? [];
   }
 
   const data = await requestJson<{ chapters: Chapter[] }>(`/api/texts/books/${bookId}/chapters`);
@@ -319,8 +324,7 @@ export async function fetchChapters(bookId: string): Promise<Chapter[]> {
 
 export async function fetchPublicationBook(bookId: string, language: "all" | "en" | "he" = "all"): Promise<PublicationBook> {
   if (import.meta.env.PROD) {
-    const data = await requestStaticJson<{ books: Record<string, PublicationBook> }>("publication-books.json");
-    const book = data.books[bookId];
+    const book = await fetchStaticPublicationBook(bookId);
 
     if (!book) {
       throw new Error("Book not found");

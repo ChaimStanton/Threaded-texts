@@ -38,6 +38,12 @@ Backend scripts are TypeScript and run through `tsx`.
 
 The frontend runs on `http://localhost:5173` and proxies `/api` to the backend on `http://localhost:4000`.
 
+## Google Analytics
+
+Set `VITE_GA_MEASUREMENT_ID` for the frontend build to enable GA4.
+
+The frontend initializes Google Consent Mode before loading GA. Consent defaults to denied for analytics and advertising storage, advertising signals are disabled, and no consent banner is shown by this app.
+
 ## Sefaria complement classification
 
 Set `OPENAI_API_KEY` in `apps/backend/.env`. The default model is `gpt-5.4`; override with `OPENAI_COMPLEMENT_MODEL`.
