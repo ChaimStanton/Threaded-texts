@@ -55,3 +55,18 @@ npm --workspace @lsjs-sacks/backend run classify:sefaria-complements -- --limit=
 ```
 
 The classifier only accepts complements from `tanach`, `gemara`, `mishna`, `shulchan_aruch`, and `rambam`.
+
+## Cloudflare Pages deployment
+
+Production deploys are intended to run from the `prod` branch to a Cloudflare Pages project named `threaded-texts`.
+
+Required GitHub repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+Local direct upload:
+
+```sh
+npm run deploy:cloudflare
+```

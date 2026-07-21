@@ -11,6 +11,7 @@
     "build": "moon run :build",
     "check": "moon check",
     "build:pages": "npm run export:static && npm --workspace @lsjs-sacks/frontend run build",
+    "deploy:cloudflare": "npm run build:pages && npx wrangler pages deploy apps/frontend/dist --project-name threaded-texts --branch prod",
     "export:static": "npm --workspace @lsjs-sacks/backend run export:static",
     "prisma:generate": "npm --workspace @lsjs-sacks/backend run prisma:generate",
     "prisma:migrate": "npm --workspace @lsjs-sacks/backend run prisma:migrate"
