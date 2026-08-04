@@ -827,6 +827,8 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
           </Box>
         </Stack>
 
+        <AboutSection />
+
         <Box className="print-list-area">
           <SourceIndexPrintView
             sources={printSources}
@@ -839,6 +841,51 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
         </Box>
       </Container>
     </Box>
+  );
+}
+
+function AboutSection() {
+  return (
+    <Paper
+      className="no-print"
+      component="section"
+      elevation={0}
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        mt: 3,
+        p: { xs: 2, md: 2.5 }
+      }}
+    >
+      <Stack spacing={0.75}>
+        <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
+          About
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Made by{" "}
+          <Box
+            component="a"
+            href="https://www.linkedin.com/in/chaimstanton/"
+            target="_blank"
+            rel="noreferrer"
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
+            Chaim Stanton
+          </Box>{" "}
+          as part of the{" "}
+          <Box
+            component="a"
+            href="https://www.lsjs.ac.uk/the-rabbi-sacks-learning-fellowship"
+            target="_blank"
+            rel="noreferrer"
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
+            LSJS Rabbi Sacks Learning Fellowship
+          </Box>
+          .
+        </Typography>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -917,6 +964,11 @@ function SourceDetail({
                 {source.book ? <Chip label={source.book} size="small" /> : null}
                 {source.category ? <Chip label={source.category} size="small" /> : null}
               </Stack>
+              <AttributionLine
+                attribution={source.attribution || "Sefaria"}
+                license={source.license}
+                sourceUrl={sourceUrl}
+              />
             </Box>
             <Stack className="no-print" direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
               <Button
@@ -955,7 +1007,12 @@ function SourceDetail({
               </Box>
 
               <Collapse in={showSourceText} unmountOnExit>
-                <SourceTextPanel sourceText={sourceText} loadingText={loadingText} textError={textError} />
+                <SourceTextPanel
+                  sourceText={sourceText}
+                  loadingText={loadingText}
+                  textError={textError}
+                  sourceUrl={sourceUrl}
+                />
               </Collapse>
             </>
           ) : null}
@@ -977,6 +1034,8 @@ function SourceDetail({
                 ["Sefaria book", source.book],
                 ["Category", source.category],
                 ["URL", source.url],
+                ["Attribution", source.attribution],
+                ["License", source.license],
                 ["Rabbi Sacks books", getRabbiSacksBookLabel(source)],
                 ["Recorded classification cost", formatSourceCost(source)],
                 ["Recorded classification tokens", formatSourceTokens(source)]
@@ -1114,11 +1173,13 @@ function SourceDetail({
 function SourceTextPanel({
   sourceText,
   loadingText,
-  textError
+  textError,
+  sourceUrl
 }: {
   sourceText: SefariaText | null;
   loadingText: boolean;
   textError: string | null;
+  sourceUrl: string;
 }) {
   return (
     <Paper elevation={0} sx={{ border: 1, borderColor: "divider", bgcolor: "grey.50", p: 2 }}>
@@ -1136,6 +1197,11 @@ function SourceTextPanel({
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             {sourceText.ref}
           </Typography>
+          <AttributionLine
+            attribution={formatSefariaTextAttribution(sourceText, "en")}
+            license={sourceText.license}
+            sourceUrl={sourceText.versionSource || sourceUrl}
+          />
           <SourceTextBlock value={sourceText.text} />
         </Stack>
       ) : null}
@@ -1161,6 +1227,44 @@ function SourceTextBlock({ value }: { value?: string | string[] }) {
       ))}
     </Stack>
   );
+}
+
+function AttributionLine({
+  attribution,
+  license,
+  sourceUrl
+}: {
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
+}) {
+  const parts = [attribution, license ? `Licence: ${license}` : undefined].filter(Boolean);
+
+  if (parts.length === 0 && !sourceUrl) {
+    return null;
+  }
+
+  return (
+    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, overflowWrap: "anywhere" }}>
+      {parts.join(" / ")}
+      {sourceUrl ? (
+        <>
+          {parts.length > 0 ? " / " : ""}
+          <Box component="a" href={sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+            Source
+          </Box>
+        </>
+      ) : null}
+    </Typography>
+  );
+}
+
+function formatSefariaTextAttribution(sourceText: SefariaText, language: "en" | "he") {
+  const versionTitle = language === "he" ? sourceText.heVersionTitle : sourceText.versionTitle;
+  const shortVersionTitle = language === "he" ? sourceText.heShortVersionTitle : sourceText.shortVersionTitle;
+  const version = versionTitle || shortVersionTitle;
+
+  return version ? `Sefaria: ${version}` : "Sefaria";
 }
 
 function SourceIndexPrintView({
@@ -1217,6 +1321,11 @@ function SourceIndexPrintView({
               >
                 {source.url || buildSefariaUrl(source.ref)}
               </Typography>
+              <AttributionLine
+                attribution={source.attribution || "Sefaria"}
+                license={source.license}
+                sourceUrl={source.url || buildSefariaUrl(source.ref)}
+              />
             </Box>
 
             <Divider />

@@ -13,6 +13,9 @@ model SourceNote {
   title       String?
   text        String?
   version     String?
+  attribution String?
+  license     String?
+  sourceUrl   String?
   language    String   @default("en")
   tags        String?
   createdAt   DateTime @default(now())
@@ -102,6 +105,9 @@ model TextUnit {
   text        String
   language    String   @default("en")
   version     String?
+  attribution String?
+  license     String?
+  sourceUrl   String?
   /// Heuristic flag for rows that look like headings, datelines, credits, bibliography, prompts,
   /// or other auxiliary/non-body content. Keep the row; filter it out only when the caller wants prose.
   isAuxiliary Boolean  @default(false)
@@ -131,6 +137,8 @@ model SefariaReference {
   book        String?
   category    String?
   url         String?
+  attribution String?
+  license     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?

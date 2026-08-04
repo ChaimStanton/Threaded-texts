@@ -32,6 +32,30 @@ type SefariaTextResponse = {
   he?: unknown;
   versionTitle?: string;
   versionSource?: string;
+  license?: string;
+  heVersionTitle?: string;
+  heVersionSource?: string;
+  heLicense?: string;
+};
+
+type SefariaTextVersion = {
+  language?: string;
+  actualLanguage?: string;
+  languageFamilyName?: string;
+  versionTitle?: string;
+  shortVersionTitle?: string;
+  versionSource?: string;
+  purchaseInformationURL?: string;
+  license?: string;
+  priority?: number | string;
+  isPrimary?: boolean;
+  isSource?: boolean;
+  text?: unknown;
+};
+
+type SefariaV3TextResponse = {
+  ref?: string;
+  versions?: SefariaTextVersion[];
 };
 
 type SefariaIndexResponse = {
@@ -194,7 +218,10 @@ async function importSegments({
   chapterRef,
   language,
   segments,
-  version
+  version,
+  attribution,
+  license,
+  sourceUrl
 }: {
   book: Book;
   chapterId: string;
@@ -203,6 +230,9 @@ async function importSegments({
   language: TextLanguage;
   segments: TextSegment[];
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
 }) {
   for (let index = 0; index < segments.length; index += 1) {
     const segment = segments[index];
@@ -225,6 +255,9 @@ async function importSegments({
         text: segment.text,
         language,
         version,
+        attribution,
+        license,
+        sourceUrl,
         isAuxiliary: false
       },
       update: {
@@ -237,16 +270,68 @@ async function importSegments({
         text: segment.text,
         language,
         version,
+        attribution,
+        license,
+        sourceUrl,
         deletedAt: null
       }
     });
   }
 }
 
+function getSefariaVersionLanguage(version: SefariaTextVersion): TextLanguage | null {
+  const language = version.actualLanguage || version.language;
+  const languageFamily = version.languageFamilyName?.toLowerCase();
+
+  if (language === "en" || languageFamily === "english") return "en";
+  if (language === "he" || languageFamily === "hebrew") return "he";
+  return null;
+}
+
+function getVersionPriority(version: SefariaTextVersion) {
+  const priority = typeof version.priority === "number" ? version.priority : Number(version.priority || 0);
+  return Number.isFinite(priority) ? priority : 0;
+}
+
+function selectPrimaryVersionsByLanguage(versions: SefariaTextVersion[]) {
+  const selected = new Map<TextLanguage, SefariaTextVersion>();
+
+  for (const version of versions) {
+    const language = getSefariaVersionLanguage(version);
+    if (!language) continue;
+
+    const existing = selected.get(language);
+    if (
+      !existing ||
+      Number(version.isPrimary) - Number(existing.isPrimary) > 0 ||
+      getVersionPriority(version) > getVersionPriority(existing)
+    ) {
+      selected.set(language, version);
+    }
+  }
+
+  return selected;
+}
+
+function getSefariaTextMetadata(version: SefariaTextVersion) {
+  const versionTitle = version.versionTitle || version.shortVersionTitle;
+  const sourceUrl = version.versionSource || version.purchaseInformationURL;
+
+  return {
+    version: versionTitle || sourceUrl || undefined,
+    attribution: versionTitle ? `Sefaria: ${versionTitle}` : "Sefaria",
+    license: version.license || undefined,
+    sourceUrl: sourceUrl || undefined
+  };
+}
+
 async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; leafIndex: number }) {
-  const data = await fetchJson<SefariaTextResponse>(`/texts/${encodeURIComponent(leaf.ref)}?context=0`);
-  const english = flattenText(data.text);
-  const hebrew = flattenText(data.he);
+  const data = await fetchJson<SefariaV3TextResponse>(`/v3/texts/${encodeURIComponent(leaf.ref)}`);
+  const primaryVersionsByLanguage = selectPrimaryVersionsByLanguage(data.versions || []);
+  const englishVersion = primaryVersionsByLanguage.get("en");
+  const hebrewVersion = primaryVersionsByLanguage.get("he");
+  const english = flattenText(englishVersion?.text);
+  const hebrew = flattenText(hebrewVersion?.text);
 
   if (REQUIRE_ENGLISH && english.length === 0) {
     return { imported: 0, skippedReason: "missing_english_text" };
@@ -276,10 +361,9 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
     }
   });
 
-  const version = data.versionTitle || data.versionSource || undefined;
   let imported = 0;
 
-  if (english.length > 0) {
+  if (englishVersion && english.length > 0) {
     await importSegments({
       book,
       chapterId: chapter.id,
@@ -287,12 +371,12 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
       chapterRef: chapter.ref,
       language: "en",
       segments: english,
-      version
+      ...getSefariaTextMetadata(englishVersion)
     });
     imported += english.length;
   }
 
-  if (!REQUIRE_ENGLISH && hebrew.length > 0) {
+  if (!REQUIRE_ENGLISH && hebrewVersion && hebrew.length > 0) {
     await importSegments({
       book,
       chapterId: chapter.id,
@@ -300,7 +384,7 @@ async function ingestLeaf({ book, leaf, leafIndex }: { book: Book; leaf: Leaf; l
       chapterRef: chapter.ref,
       language: "he",
       segments: hebrew,
-      version
+      ...getSefariaTextMetadata(hebrewVersion)
     });
     imported += hebrew.length;
   }

@@ -8,8 +8,22 @@ export type SefariaTextResponse = {
   versions?: Array<{
     title?: string;
     versionTitle?: string;
+    versionSource?: string;
+    shortVersionTitle?: string;
     language?: string;
+    actualLanguage?: string;
+    license?: string;
+    versionNotes?: string;
+    digitizedBySefaria?: boolean;
   }>;
+  versionTitle?: string;
+  shortVersionTitle?: string;
+  versionSource?: string;
+  license?: string;
+  heVersionTitle?: string;
+  heShortVersionTitle?: string;
+  heVersionSource?: string;
+  heLicense?: string;
 };
 
 export async function getSefariaText(ref: string): Promise<SefariaTextResponse> {

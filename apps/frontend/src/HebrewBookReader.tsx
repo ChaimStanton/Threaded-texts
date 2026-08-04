@@ -171,6 +171,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
   const hebrewSegmentCount = segmentCount - englishSegmentCount;
   const hasEnglish = englishSegmentCount > 0;
   const hasHebrew = hebrewSegmentCount > 0;
+  const textAttributions = useMemo(() => getTextAttributions(chapters), [chapters]);
 
   const goToChapter = (chapterNumber: number) => {
     setActiveChapter(chapterNumber);
@@ -323,6 +324,46 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
                 {hebrewSegmentCount > 0 ? <Chip label={`${hebrewSegmentCount.toLocaleString()} Hebrew segments`} variant="outlined" /> : null}
                 <Chip label="Complete Sefaria order" variant="outlined" />
               </Stack>
+              {textAttributions.length > 0 ? (
+                <Stack spacing={0.5} alignItems="center" sx={{ mt: 2 }}>
+                  {textAttributions.map((item) => (
+                    <Typography
+                      key={`${item.language}-${item.attribution}-${item.license}-${item.sourceUrl}`}
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ overflowWrap: "anywhere" }}
+                    >
+                      {item.language === "he" ? "Hebrew" : "English"}: {item.attribution}
+                      {item.license ? ` / Licence: ${item.license}` : ""}
+                      {item.sourceUrl ? (
+                        <>
+                          {" / "}
+                          <Box component="a" href={item.sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+                            Source
+                          </Box>
+                        </>
+                      ) : null}
+                    </Typography>
+                  ))}
+                </Stack>
+              ) : null}
+              {book.fullTextNotice ? (
+                <Alert severity="warning" variant="outlined" sx={{ mt: 3, mx: "auto", maxWidth: 860, textAlign: "left" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {book.fullTextNotice.title}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {book.fullTextNotice.body}{" "}
+                    <Box component="a" href={book.fullTextNotice.sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+                      {book.fullTextNotice.source}
+                    </Box>
+                    {" / "}
+                    <Box component="a" href={book.fullTextNotice.licenseHelpUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+                      Licensing information
+                    </Box>
+                  </Typography>
+                </Alert>
+              ) : null}
             </Box>
 
             <FormControl className="reader-no-print" fullWidth sx={{ display: { xs: "flex", lg: "none" }, mb: 2 }}>
@@ -617,6 +658,38 @@ function getPreferredReadingMode(chapters: PublicationBook["chapters"]) {
   }
 
   return hasEnglish ? "english" : "hebrew";
+}
+
+function getTextAttributions(chapters: PublicationBook["chapters"]) {
+  const seen = new Set<string>();
+  const attributions: Array<{
+    language: string;
+    attribution: string;
+    license?: string;
+    sourceUrl?: string;
+  }> = [];
+
+  for (const unit of chapters.flatMap((chapter) => chapter.textUnits)) {
+    const attribution = unit.attribution || (unit.version ? `Sefaria: ${unit.version}` : undefined);
+    if (!attribution && !unit.license && !unit.sourceUrl) {
+      continue;
+    }
+
+    const key = [unit.language, attribution, unit.license, unit.sourceUrl].join("|");
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    attributions.push({
+      language: unit.language,
+      attribution: attribution || "Sefaria",
+      license: unit.license,
+      sourceUrl: unit.sourceUrl
+    });
+  }
+
+  return attributions.sort((left, right) => left.language.localeCompare(right.language));
 }
 
 function getChapterDirection(chapter: PublicationBook["chapters"][number], mode: ReadingMode) {

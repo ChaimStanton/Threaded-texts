@@ -13,6 +13,16 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../..");
 const dataDir = path.join(repoRoot, "apps/frontend/public/data");
 const publicationBooksDir = path.join(dataDir, "publication-books");
+const fullTextPublicStaticExportNotice = {
+  title: "Full text licence notice",
+  body:
+    "This public static export includes full text from Sefaria editions. Reuse is governed by each text unit's recorded licence and attribution. CC-BY-NC texts are for noncommercial use only and require attribution to the source edition.",
+  nonCommercialOnly: true,
+  attributionRequired: true,
+  source: "Sefaria",
+  sourceUrl: "https://www.sefaria.org",
+  licenseHelpUrl: "https://help.sefaria.org/hc/en-us/articles/18490043237148-How-to-Find-and-Understand-Licensing-Information"
+};
 
 async function writeJson(name: string, data: unknown) {
   await writeFile(path.join(dataDir, name), `${JSON.stringify(data, null, 2)}\n`, "utf8");
@@ -47,7 +57,7 @@ async function main() {
 
       await writeFile(
         path.join(publicationBooksDir, `${encodeURIComponent(bookId)}.json`),
-        `${JSON.stringify({ book }, null, 2)}\n`,
+        `${JSON.stringify({ book, fullTextNotice: fullTextPublicStaticExportNotice }, null, 2)}\n`,
         "utf8"
       );
     })
@@ -59,7 +69,8 @@ async function main() {
     writeJson("rabbi-sacks-articles.json", { articles }),
     writeJson("source-notes.json", { notes: notes.map(serializeSourceNote) }),
     writeJson("source-connections.json", { sources: sources.map(serializeSourceConnection) }),
-    writeJson("classification-progress.json", { books: classificationProgress })
+    writeJson("classification-progress.json", { books: classificationProgress }),
+    writeJson("metadata.json", { fullTextNotice: fullTextPublicStaticExportNotice })
   ]);
 
   await writeFile(path.join(repoRoot, "apps/frontend/public/.nojekyll"), "", "utf8");
@@ -74,6 +85,8 @@ function serializeSourceConnection(source: Awaited<ReturnType<typeof listSefaria
     book: source.book,
     category: source.category,
     url: source.url,
+    attribution: source.attribution,
+    license: source.license,
     connectionCount: source._count.textComplements,
     passages: source.textComplements.map((connection) => ({
       id: connection.id,

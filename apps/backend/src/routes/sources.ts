@@ -10,6 +10,9 @@ const createSourceNoteSchema = z.object({
   title: z.string().optional(),
   text: z.string().optional(),
   version: z.string().optional(),
+  attribution: z.string().optional(),
+  license: z.string().optional(),
+  sourceUrl: z.string().url().optional(),
   language: z.string().default("en"),
   tags: z.array(z.string()).default([])
 });
@@ -63,6 +66,8 @@ sourcesRouter.get("/connections", async (req, res, next) => {
         book: source.book,
         category: source.category,
         url: source.url,
+        attribution: source.attribution,
+        license: source.license,
         connectionCount: source._count.textComplements,
         passages: source.textComplements.map((connection) => ({
           id: connection.id,

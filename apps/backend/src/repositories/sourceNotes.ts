@@ -17,6 +17,9 @@ export async function createSourceNote(input: {
   title?: string;
   text?: string;
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
   language: string;
   tags: string[];
 }) {
