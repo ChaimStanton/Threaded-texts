@@ -82,10 +82,10 @@ export type SourceConnectionPassage = {
   confidence?: number;
   rank?: number;
   latestReview: {
-    id: string;
-    provider: string;
-    model: string;
-    promptVersion: string;
+    id?: string;
+    provider?: string;
+    model?: string;
+    promptVersion?: string;
     providerRequestId?: string;
     status: string;
     verdict?: "accept" | "borderline" | "reject";
@@ -95,7 +95,7 @@ export type SourceConnectionPassage = {
     suggestedAction?: string;
     suggestedRef?: string;
     estimatedCostUsd?: number;
-    createdAt: string;
+    createdAt?: string;
     completedAt?: string;
   } | null;
   generatedBy: {

@@ -1,3 +1,6 @@
+import "@fontsource/noto-serif-hebrew/400.css";
+import "@fontsource/noto-serif-hebrew/600.css";
+import "@fontsource/noto-serif-hebrew/700.css";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import FormatSizeIcon from "@mui/icons-material/FormatSize";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
