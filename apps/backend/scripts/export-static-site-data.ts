@@ -13,6 +13,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../..");
 const dataDir = path.join(repoRoot, "apps/frontend/public/data");
 const publicationBooksDir = path.join(dataDir, "publication-books");
+const sourceConnectionReviewOutcomes = ["accept", "borderline", "reject", "pending", "failed", "unreviewed"] as const;
 
 async function writeJson(name: string, data: unknown) {
   await writeFile(path.join(dataDir, name), `${JSON.stringify(data, null, 2)}\n`, "utf8");
@@ -23,12 +24,18 @@ async function main() {
   await mkdir(dataDir, { recursive: true });
   await mkdir(publicationBooksDir, { recursive: true });
 
-  const [authors, books, articles, notes, sources, classificationProgress] = await Promise.all([
+  const [authors, books, articles, notes, sources, reviewOutcomeSources, classificationProgress] = await Promise.all([
     listAuthors(),
     listBooks(),
     listRabbiSacksArticles(),
     listSourceNotes(),
     listSefariaReferenceConnections({ reviewOutcome: "all", limit: 10000 }),
+    Promise.all(
+      sourceConnectionReviewOutcomes.map(async (reviewOutcome) => ({
+        reviewOutcome,
+        sources: await listSefariaReferenceConnections({ reviewOutcome, limit: 10000 })
+      }))
+    ),
     getClassificationProgress()
   ]);
 
@@ -59,6 +66,9 @@ async function main() {
     writeJson("rabbi-sacks-articles.json", { articles }),
     writeJson("source-notes.json", { notes: notes.map(serializeSourceNote) }),
     writeJson("source-connections.json", { sources: sources.map(serializeSourceConnection) }),
+    ...reviewOutcomeSources.map(({ reviewOutcome, sources }) =>
+      writeJson(`source-connections-${reviewOutcome}.json`, { sources: sources.map(serializeSourceConnection) })
+    ),
     writeJson("classification-progress.json", { books: classificationProgress })
   ]);
 
