@@ -1,4 +1,5 @@
 import FilterListIcon from "@mui/icons-material/FilterList";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LinkIcon from "@mui/icons-material/Link";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -17,6 +18,10 @@ import {
   Collapse,
   Container,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   FormControl,
   GlobalStyles,
@@ -319,6 +324,7 @@ export function App() {
 
 function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void }) {
   const isDevMode = import.meta.env.DEV;
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [sources, setSources] = useState<SourceConnection[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState("");
   const [query, setQuery] = useState("");
@@ -387,6 +393,19 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
 
   useEffect(() => {
     void loadSources();
+  }, []);
+
+  useEffect(() => {
+    const openAboutFromHash = () => {
+      if (window.location.hash === "#about") {
+        setAboutOpen(true);
+      }
+    };
+
+    openAboutFromHash();
+    window.addEventListener("hashchange", openAboutFromHash);
+
+    return () => window.removeEventListener("hashchange", openAboutFromHash);
   }, []);
 
   useEffect(() => {
@@ -534,6 +553,23 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
               Connected sources and study passages
             </Typography>
           </Box>
+          <Button
+            variant="text"
+            startIcon={<InfoOutlinedIcon />}
+            onClick={() => setAboutOpen(true)}
+            sx={{ flexShrink: 0, display: { xs: "none", sm: "inline-flex" } }}
+          >
+            About
+          </Button>
+          <Tooltip title="About this project">
+            <IconButton
+              aria-label="About this project"
+              onClick={() => setAboutOpen(true)}
+              sx={{ display: { xs: "inline-flex", sm: "none" } }}
+            >
+              <InfoOutlinedIcon />
+            </IconButton>
+          </Tooltip>
           {effectiveAdminMode ? (
             <>
               <Button
@@ -827,8 +863,6 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
           </Box>
         </Stack>
 
-        <AboutSection />
-
         <Box className="print-list-area">
           <SourceIndexPrintView
             sources={printSources}
@@ -840,27 +874,16 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
           />
         </Box>
       </Container>
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Box>
   );
 }
 
-function AboutSection() {
+function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Paper
-      className="no-print"
-      component="section"
-      elevation={0}
-      sx={{
-        border: 1,
-        borderColor: "divider",
-        mt: 3,
-        p: { xs: 2, md: 2.5 }
-      }}
-    >
-      <Stack spacing={0.75}>
-        <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
-          About
-        </Typography>
+    <Dialog className="no-print" open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>About</DialogTitle>
+      <DialogContent>
         <Typography variant="body2" color="text.secondary">
           Made by{" "}
           <Box
@@ -884,8 +907,11 @@ function AboutSection() {
           </Box>
           .
         </Typography>
-      </Stack>
-    </Paper>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
