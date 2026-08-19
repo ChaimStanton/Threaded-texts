@@ -3,6 +3,7 @@ type ConsentState = "granted" | "denied";
 type GtagCommand =
   | ["js", Date]
   | ["config", string, Record<string, unknown>?]
+  | ["set", Record<string, unknown>]
   | [
       "consent",
       "default" | "update",
@@ -52,6 +53,10 @@ export function initializeAnalytics() {
     });
 
   window.gtag("consent", "default", deniedConsent);
+  window.gtag("set", {
+    ads_data_redaction: true,
+    url_passthrough: false
+  });
   window.gtag("js", new Date());
   window.gtag("config", measurementId, {
     anonymize_ip: true,

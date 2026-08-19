@@ -27,6 +27,9 @@ export type TextUnit = {
   text: string;
   language: string;
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
   isAuxiliary: boolean;
 };
 
@@ -46,6 +49,17 @@ export type PublicationChapter = Chapter & {
 
 export type PublicationBook = Book & {
   chapters: PublicationChapter[];
+  fullTextNotice?: FullTextNotice;
+};
+
+export type FullTextNotice = {
+  title: string;
+  body: string;
+  nonCommercialOnly: boolean;
+  attributionRequired: boolean;
+  source: string;
+  sourceUrl: string;
+  licenseHelpUrl: string;
 };
 
 export type RabbiSacksArticle = {
@@ -66,6 +80,9 @@ export type SourceNote = {
   title?: string;
   text?: string;
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
   language: string;
   tags: string[];
   createdAt: string;
@@ -136,6 +153,8 @@ export type SourceConnection = {
   book?: string;
   category?: string;
   url?: string;
+  attribution?: string;
+  license?: string;
   connectionCount: number;
   passages: SourceConnectionPassage[];
 };
@@ -148,8 +167,21 @@ export type SefariaText = {
   versions?: Array<{
     title?: string;
     versionTitle?: string;
+    shortVersionTitle?: string;
+    versionSource?: string;
     language?: string;
+    actualLanguage?: string;
+    license?: string;
+    digitizedBySefaria?: boolean;
   }>;
+  versionTitle?: string;
+  shortVersionTitle?: string;
+  versionSource?: string;
+  license?: string;
+  heVersionTitle?: string;
+  heShortVersionTitle?: string;
+  heVersionSource?: string;
+  heLicense?: string;
 };
 
 export type ClassificationProgressBook = {
@@ -207,8 +239,10 @@ async function requestStaticSourceConnections(input: {
 }
 
 async function fetchStaticPublicationBook(bookId: string): Promise<PublicationBook | undefined> {
-  const data = await requestStaticJson<{ book: PublicationBook }>(`publication-books/${encodeURIComponent(bookId)}.json`);
-  return data.book;
+  const data = await requestStaticJson<{ book: PublicationBook; fullTextNotice?: FullTextNotice }>(
+    `publication-books/${encodeURIComponent(bookId)}.json`
+  );
+  return data.book ? { ...data.book, fullTextNotice: data.fullTextNotice } : undefined;
 }
 
 function assertApiWriteAvailable() {
@@ -392,6 +426,9 @@ export async function createTextUnit(input: {
   text: string;
   language?: string;
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
 }): Promise<TextUnit> {
   assertApiWriteAvailable();
   const data = await requestJson<{ unit: TextUnit }>("/api/texts/units", {
@@ -436,6 +473,11 @@ export async function createSourceNote(input: {
   ref: string;
   title?: string;
   text?: string;
+  version?: string;
+  language?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
   tags?: string[];
 }): Promise<SourceNote> {
   assertApiWriteAvailable();

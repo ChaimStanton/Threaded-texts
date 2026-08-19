@@ -127,6 +127,9 @@ export async function upsertTextUnit(input: {
   text: string;
   language: string;
   version?: string;
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
 }) {
   return prisma.textUnit.upsert({
     where: { paragraphId: input.paragraphId },

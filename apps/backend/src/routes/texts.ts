@@ -28,7 +28,10 @@ const upsertTextUnitSchema = z.object({
   ref: z.string().min(1),
   text: z.string().min(1),
   language: z.string().default("en"),
-  version: z.string().optional()
+  version: z.string().optional(),
+  attribution: z.string().optional(),
+  license: z.string().optional(),
+  sourceUrl: z.string().url().optional()
 });
 
 const upsertChapterSchema = z.object({

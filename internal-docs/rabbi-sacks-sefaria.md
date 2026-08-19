@@ -117,17 +117,19 @@ GET /api/sources/sefaria/:ref
 
 When adding Rabbi Sacks-specific Sefaria support, prefer storing `jonathan-sacks` as a stable topic slug and fetching through backend code so frontend callers do not depend directly on Sefaria API shape.
 
-## English Body Availability Checked 2026-06-12
+## English Body Availability Checked 2026-07-27
 
 For the current LLM complement tuning goal, English-only means actual English body text returned by Sefaria, not merely English catalogue titles.
 
-Checked with Sefaria MCP/API:
+Checked with Sefaria MCP/API and Sefaria v3 text/version endpoints:
 
 - `Not in God's Name; Confronting Religious Violence`
 - `Radical Then, Radical Now`
 - `The Home We Build Together; Recreating Society`
 
-All three expose English section titles, but their body text versions currently report only Hebrew available versions. English-only ingestion should skip them unless Sefaria later exposes an English body version.
+All three expose English section titles in the Sefaria catalogue/UI, but their body text versions currently report only Hebrew available versions. `api/v3/texts/{ref}` reports `availableVersionLanguages: ["he"]` and zero English body segments for these works. English-only ingestion should skip them unless Sefaria later exposes an English body version.
+
+`Arguments for the Sake of Heaven` currently exposes English body text on Sefaria, but no Hebrew body version.
 
 Use the guarded importer form to avoid accidentally ingesting Hebrew for an English-only run:
 

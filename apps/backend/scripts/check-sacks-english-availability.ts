@@ -19,9 +19,12 @@ type SefariaIndexResponse = {
 type SefariaTextResponse = {
   text?: unknown;
   he?: unknown;
-  available_versions?: Array<{
+  versions?: Array<{
+    language?: string;
+    actualLanguage?: string;
     languageFamilyName?: string;
     versionTitle?: string;
+    text?: unknown;
   }>;
 };
 
@@ -81,6 +84,15 @@ function flattenText(value: unknown, out: string[] = []) {
   }
 
   return out;
+}
+
+function getVersionLanguage(version: NonNullable<SefariaTextResponse["versions"]>[number]) {
+  const language = version.actualLanguage || version.language;
+  const languageFamily = version.languageFamilyName?.toLowerCase();
+
+  if (language === "en" || languageFamily === "english") return "en";
+  if (language === "he" || languageFamily === "hebrew") return "he";
+  return languageFamily || language;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -158,14 +170,17 @@ async function inspectTarget(target: (typeof targets)[number]) {
   const availableVersionLanguages = new Set<string>();
 
   for (const leaf of leaves) {
-    const data = await fetchJson<SefariaTextResponse>(`/texts/${encodeURIComponent(leaf.ref)}?context=0`);
-    const english = flattenText(data.text);
-    const hebrew = flattenText(data.he);
+    const data = await fetchJson<SefariaTextResponse>(`/v3/texts/${encodeURIComponent(leaf.ref)}`);
+    const english = (data.versions || [])
+      .filter((version) => getVersionLanguage(version) === "en")
+      .flatMap((version) => flattenText(version.text));
+    const hebrew = (data.versions || [])
+      .filter((version) => getVersionLanguage(version) === "he")
+      .flatMap((version) => flattenText(version.text));
 
-    for (const version of data.available_versions || []) {
-      if (version.languageFamilyName) {
-        availableVersionLanguages.add(version.languageFamilyName);
-      }
+    for (const version of data.versions || []) {
+      const language = getVersionLanguage(version);
+      if (language) availableVersionLanguages.add(language);
     }
 
     if (english.length > 0) {

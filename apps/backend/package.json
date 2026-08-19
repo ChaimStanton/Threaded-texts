@@ -22,6 +22,7 @@
     "adjudicate:sefaria:sacks-complements": "tsx scripts/adjudicate-sacks-publication-complements.ts",
     "prune:sefaria:sacks-complements": "tsx scripts/prune-ineligible-sacks-complements.ts",
     "repair:sefaria:sacks-refs": "tsx scripts/repair-sacks-sefaria-references.ts",
+    "backfill:sefaria:metadata": "tsx scripts/backfill-sefaria-metadata.ts",
     "check:sefaria:sacks-english": "tsx scripts/check-sacks-english-availability.ts",
     "check:publication:sacks": "tsx scripts/check-sacks-publication.ts",
     "ingest:sefaria:sacks": "tsx scripts/ingest-sefaria-rabbi-sacks.ts",

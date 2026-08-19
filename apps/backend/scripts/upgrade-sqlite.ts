@@ -54,6 +54,30 @@ if (!hasColumn("text", "chapterId")) {
   db.exec(`ALTER TABLE "text" ADD COLUMN "chapterId" TEXT;`);
 }
 
+if (!hasColumn("SourceNote", "attribution")) {
+  db.exec(`ALTER TABLE "SourceNote" ADD COLUMN "attribution" TEXT;`);
+}
+
+if (!hasColumn("SourceNote", "license")) {
+  db.exec(`ALTER TABLE "SourceNote" ADD COLUMN "license" TEXT;`);
+}
+
+if (!hasColumn("SourceNote", "sourceUrl")) {
+  db.exec(`ALTER TABLE "SourceNote" ADD COLUMN "sourceUrl" TEXT;`);
+}
+
+if (!hasColumn("text", "attribution")) {
+  db.exec(`ALTER TABLE "text" ADD COLUMN "attribution" TEXT;`);
+}
+
+if (!hasColumn("text", "license")) {
+  db.exec(`ALTER TABLE "text" ADD COLUMN "license" TEXT;`);
+}
+
+if (!hasColumn("text", "sourceUrl")) {
+  db.exec(`ALTER TABLE "text" ADD COLUMN "sourceUrl" TEXT;`);
+}
+
 if (!hasColumn("text", "isAuxiliary")) {
   db.exec(`ALTER TABLE "text" ADD COLUMN "isAuxiliary" BOOLEAN NOT NULL DEFAULT false;`);
 }
@@ -217,6 +241,40 @@ if (!hasColumn("SefariaReference", "corpus")) {
   db.exec(`ALTER TABLE "SefariaReference" ADD COLUMN "corpus" TEXT NOT NULL DEFAULT 'tanach';`);
 }
 
+if (!hasColumn("SefariaReference", "attribution")) {
+  db.exec(`ALTER TABLE "SefariaReference" ADD COLUMN "attribution" TEXT;`);
+}
+
+if (!hasColumn("SefariaReference", "license")) {
+  db.exec(`ALTER TABLE "SefariaReference" ADD COLUMN "license" TEXT;`);
+}
+
+db.exec(`
+  UPDATE "text"
+  SET "attribution" = CASE
+    WHEN "version" IS NOT NULL AND trim("version") <> '' THEN 'Sefaria: ' || "version"
+    ELSE 'Sefaria'
+  END
+  WHERE "paragraphId" LIKE 'sefaria:%'
+    AND "attribution" IS NULL;
+
+  UPDATE "text"
+  SET "license" = 'CC-BY-NC'
+  WHERE "paragraphId" LIKE 'sefaria:%'
+    AND "license" IS NULL
+    AND "bookId" IN (
+      SELECT "id"
+      FROM "Book"
+      WHERE coalesce("category", '') LIKE '%Rabbi Lord Jonathan Sacks%'
+         OR coalesce("category", '') LIKE '%Jonathan Sacks%'
+         OR "title" = 'The Jonathan Sacks Haggadah'
+    );
+
+  UPDATE "SefariaReference"
+  SET "attribution" = 'Sefaria'
+  WHERE "attribution" IS NULL;
+`);
+
 if (!tableSql("SefariaReference").includes("SefariaReference_corpus_check")) {
   db.exec(`
     DROP VIEW IF EXISTS "TextTanachComplementReview";
@@ -232,6 +290,8 @@ if (!tableSql("SefariaReference").includes("SefariaReference_corpus_check")) {
       "book" TEXT,
       "category" TEXT,
       "url" TEXT,
+      "attribution" TEXT,
+      "license" TEXT,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" DATETIME NOT NULL,
       "deletedAt" DATETIME,
@@ -246,6 +306,8 @@ if (!tableSql("SefariaReference").includes("SefariaReference_corpus_check")) {
       "book",
       "category",
       "url",
+      "attribution",
+      "license",
       "createdAt",
       "updatedAt",
       "deletedAt"
@@ -261,6 +323,8 @@ if (!tableSql("SefariaReference").includes("SefariaReference_corpus_check")) {
       "book",
       "category",
       "url",
+      "attribution",
+      "license",
       "createdAt",
       "updatedAt",
       "deletedAt"

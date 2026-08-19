@@ -75,6 +75,8 @@ export type SefariaComplementInput = {
   book?: string;
   category?: string;
   url?: string;
+  attribution?: string;
+  license?: string;
   topic?: string;
   rationale?: string;
   confidence?: number;
@@ -169,7 +171,9 @@ export async function recordLlmTextClassification(input: RecordLlmTextClassifica
           corpus: complement.corpus,
           book: complement.book,
           category: complement.category,
-          url: complement.url
+          url: complement.url,
+          attribution: complement.attribution ?? "Sefaria",
+          license: complement.license
         },
         update: {
           normalizedRef: complement.normalizedRef,
@@ -177,6 +181,8 @@ export async function recordLlmTextClassification(input: RecordLlmTextClassifica
           book: complement.book,
           category: complement.category,
           url: complement.url,
+          attribution: complement.attribution ?? "Sefaria",
+          license: complement.license,
           deletedAt: null
         }
       });

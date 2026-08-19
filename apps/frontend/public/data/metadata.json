@@ -1,0 +1,11 @@
+{
+  "fullTextNotice": {
+    "title": "Full text licence notice",
+    "body": "This public static export includes full text from Sefaria editions. Reuse is governed by each text unit's recorded licence and attribution. CC-BY-NC texts are for noncommercial use only and require attribution to the source edition.",
+    "nonCommercialOnly": true,
+    "attributionRequired": true,
+    "source": "Sefaria",
+    "sourceUrl": "https://www.sefaria.org",
+    "licenseHelpUrl": "https://help.sefaria.org/hc/en-us/articles/18490043237148-How-to-Find-and-Understand-Licensing-Information"
+  }
+}
