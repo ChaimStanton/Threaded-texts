@@ -99,10 +99,10 @@ export type SourceConnectionPassage = {
   confidence?: number;
   rank?: number;
   latestReview: {
-    id: string;
-    provider: string;
-    model: string;
-    promptVersion: string;
+    id?: string;
+    provider?: string;
+    model?: string;
+    promptVersion?: string;
     providerRequestId?: string;
     status: string;
     verdict?: "accept" | "borderline" | "reject";
@@ -112,7 +112,7 @@ export type SourceConnectionPassage = {
     suggestedAction?: string;
     suggestedRef?: string;
     estimatedCostUsd?: number;
-    createdAt: string;
+    createdAt?: string;
     completedAt?: string;
   } | null;
   generatedBy: {
@@ -199,6 +199,7 @@ export type ClassificationProgressBook = {
 
 const staticDataBase = `${import.meta.env.BASE_URL}data/`;
 const staticDataCache = new Map<string, Promise<unknown>>();
+type SourceConnectionReviewOutcome = "all" | "accept" | "borderline" | "reject" | "pending" | "failed" | "unreviewed";
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
@@ -219,6 +220,22 @@ function requestStaticJson<T>(name: string): Promise<T> {
   const request = requestJson<T>(`${staticDataBase}${name}`);
   staticDataCache.set(name, request as Promise<unknown>);
   return request;
+}
+
+async function requestStaticSourceConnections(input: {
+  reviewOutcome?: SourceConnectionReviewOutcome;
+}): Promise<SourceConnection[]> {
+  if (input.reviewOutcome && input.reviewOutcome !== "all") {
+    try {
+      const data = await requestStaticJson<{ sources: SourceConnection[] }>(`source-connections-${input.reviewOutcome}.json`);
+      return data.sources;
+    } catch (error) {
+      // Older static exports only have the full connection file.
+    }
+  }
+
+  const data = await requestStaticJson<{ sources: SourceConnection[] }>("source-connections.json");
+  return data.sources;
 }
 
 async function fetchStaticPublicationBook(bookId: string): Promise<PublicationBook | undefined> {
@@ -476,12 +493,12 @@ export async function fetchSourceConnections(input: {
   query?: string;
   corpus?: ComplementCorpus | "all";
   minConfidence?: number;
-  reviewOutcome?: "all" | "accept" | "borderline" | "reject" | "pending" | "failed" | "unreviewed";
+  reviewOutcome?: SourceConnectionReviewOutcome;
   limit?: number;
 } = {}): Promise<SourceConnection[]> {
   if (import.meta.env.PROD) {
-    const data = await requestStaticJson<{ sources: SourceConnection[] }>("source-connections.json");
-    return filterStaticSources(data.sources, input);
+    const sources = await requestStaticSourceConnections(input);
+    return filterStaticSources(sources, input);
   }
 
   const params = new URLSearchParams();

@@ -100,6 +100,9 @@ const reviewVerdictLabels: Record<string, string> = {
   reject: "Rejected"
 };
 
+const initialVisibleSourceCount = 250;
+const sourceListPageSize = 250;
+
 const tanachBookOrder = [
   "Genesis",
   "Exodus",
@@ -337,6 +340,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
   const [adminMode, setAdminMode] = useState(false);
   const [exportingSourceIndex, setExportingSourceIndex] = useState(false);
   const [printingSelectionOnly, setPrintingSelectionOnly] = useState(false);
+  const [visibleSourceCount, setVisibleSourceCount] = useState(initialVisibleSourceCount);
   const [classificationProgress, setClassificationProgress] = useState<ClassificationProgressBook[]>([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState<string | null>(null);
@@ -355,6 +359,8 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
     () => sortSourcesByRabbiSacksBook(languageFilteredSources, rabbiSacksBook),
     [languageFilteredSources, rabbiSacksBook]
   );
+  const visibleSources = useMemo(() => displayedSources.slice(0, visibleSourceCount), [displayedSources, visibleSourceCount]);
+  const hiddenSourceCount = Math.max(displayedSources.length - visibleSources.length, 0);
   const exportSources = useMemo(() => sortSourcesByCanonicalRef(displayedSources), [displayedSources]);
   const selectedExportSources = useMemo(
     () => getSourcesForSelectedPassages(exportSources, selectedPassageIds),
@@ -394,6 +400,10 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
   useEffect(() => {
     void loadSources();
   }, []);
+
+  useEffect(() => {
+    setVisibleSourceCount(initialVisibleSourceCount);
+  }, [query, corpus, rabbiSacksBook, reviewOutcome, showHebrewOnly]);
 
   useEffect(() => {
     const openAboutFromHash = () => {
@@ -776,6 +786,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
             <Box sx={{ px: 2, py: 1.5 }}>
               <Typography variant="subtitle2" color="text.secondary">
                 {loading ? "Loading" : `${displayedSources.length} sources`}
+                {hiddenSourceCount > 0 ? `; showing ${visibleSources.length}` : ""}
               </Typography>
             </Box>
 
@@ -783,7 +794,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
               {displayedSources.length === 0 ? (
                 <EmptyListState />
               ) : (
-                displayedSources.map((source) => {
+                visibleSources.map((source) => {
                   const sourcePassageIds = source.passages.map((passage) => passage.id);
                   const selectedInSource = sourcePassageIds.filter((passageId) => selectedPassageIds.has(passageId)).length;
 
@@ -846,6 +857,17 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
                   );
                 })
               )}
+              {hiddenSourceCount > 0 ? (
+                <Box sx={{ borderTop: 1, borderColor: "divider", p: 1.5 }}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => setVisibleSourceCount((count) => count + sourceListPageSize)}
+                  >
+                    Show {Math.min(sourceListPageSize, hiddenSourceCount)} more sources
+                  </Button>
+                </Box>
+              ) : null}
             </List>
           </Paper>
 
@@ -864,14 +886,16 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
         </Stack>
 
         <Box className="print-list-area">
-          <SourceIndexPrintView
-            sources={printSources}
-            corpus={corpus}
-            rabbiSacksBook={rabbiSacksBook}
-            reviewOutcome={reviewOutcome}
-            query={query}
-            selectionOnly={printingSelectionOnly}
-          />
+          {exportingSourceIndex ? (
+            <SourceIndexPrintView
+              sources={printSources}
+              corpus={corpus}
+              rabbiSacksBook={rabbiSacksBook}
+              reviewOutcome={reviewOutcome}
+              query={query}
+              selectionOnly={printingSelectionOnly}
+            />
+          ) : null}
         </Box>
       </Container>
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />

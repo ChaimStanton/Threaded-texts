@@ -1,0 +1,49 @@
+{
+  "sources": [
+    {
+      "id": "cmptoutct01m0qee4qg1hnj7h",
+      "ref": "Pirkei Avot 5:3",
+      "normalizedRef": "Pirkei Avot 5:3",
+      "corpus": "mishna",
+      "book": "Pirkei Avot",
+      "category": "Mishnah",
+      "url": "https://www.sefaria.org/Pirkei_Avot.5.3",
+      "attribution": "Sefaria",
+      "license": null,
+      "connectionCount": 1,
+      "passages": [
+        {
+          "id": "cmropauk600mbqek0lwbhbbje",
+          "paragraphId": "sefaria:sefaria-not-in-gods-name-confronting-religious-violence:9:36:he",
+          "topic": "Abraham’s tests",
+          "rationale": "The paragraph frames both episodes as Abrahamic trials involving a son. This mishnah gives the classical lens of Abraham’s repeated tests, helping a reader approach the two Genesis narratives as linked moments in his moral and covenantal formation.",
+          "confidence": 0.8,
+          "rank": 3,
+          "latestReview": {
+            "status": "completed",
+            "verdict": "borderline",
+            "score": 2,
+            "rationale": "The Sefaria source discusses Abraham's trials, which is thematically related to the target paragraph, but the connection is indirect and not strongly conceptual."
+          },
+          "generatedBy": null,
+          "rabbiSacksRef": "Not in God's Name; Confronting Religious Violence, II; Siblings, 6; The Half Brothers:36",
+          "rabbiSacksUrl": "https://www.sefaria.org/Not_in_God's_Name;_Confronting_Religious_Violence,_II;_Siblings,_6;_The_Half_Brothers.36?lang=bi",
+          "text": "על משמעות הדבר נוכל לעמוד אם נבחין בהקבלה שבין פרק כא בספר בראשית, המספר על גירוש ישמעאל, ובין פרק כב, המספר בעקידת יצחק. בשני הסיפורים אברהם עומד בניסיון הכרוך באבדן פוטנציאלי של בן. ישמעאל ויצחק, שני הילדים, תופסים אך בקושי את המתרחש. בשני המקרים הם עומדים למות וניצָלים ברגע האחרון בזכות התערבות אלוהית: הופעת באר מים במקרהו של ישמעאל, ואיל הנאחז בסבך אצל יצחק. קווי הדמיון מבליטים את נקודות השוני.",
+          "language": "he",
+          "book": {
+            "id": "cmqa5iij10002qevclxj9mnx0",
+            "slug": "sefaria-not-in-gods-name-confronting-religious-violence",
+            "title": "Not in God's Name; Confronting Religious Violence",
+            "category": "Jewish Thought / Modern / Rabbi Lord Jonathan Sacks"
+          },
+          "chapter": {
+            "id": "cmqa6lim2000kqeo4cv26ir69",
+            "number": 9,
+            "ref": "Not in God's Name; Confronting Religious Violence, II; Siblings, 6; The Half Brothers",
+            "title": "6; The Half Brothers"
+          }
+        }
+      ]
+    }
+  ]
+}

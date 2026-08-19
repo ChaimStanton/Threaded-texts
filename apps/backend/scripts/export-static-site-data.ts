@@ -13,6 +13,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../..");
 const dataDir = path.join(repoRoot, "apps/frontend/public/data");
 const publicationBooksDir = path.join(dataDir, "publication-books");
+const sourceConnectionReviewOutcomes = ["accept", "borderline", "reject", "pending", "failed", "unreviewed"] as const;
 const fullTextPublicStaticExportNotice = {
   title: "Full text licence notice",
   body:
@@ -33,12 +34,18 @@ async function main() {
   await mkdir(dataDir, { recursive: true });
   await mkdir(publicationBooksDir, { recursive: true });
 
-  const [authors, books, articles, notes, sources, classificationProgress] = await Promise.all([
+  const [authors, books, articles, notes, sources, reviewOutcomeSources, classificationProgress] = await Promise.all([
     listAuthors(),
     listBooks(),
     listRabbiSacksArticles(),
     listSourceNotes(),
     listSefariaReferenceConnections({ reviewOutcome: "all", limit: 10000 }),
+    Promise.all(
+      sourceConnectionReviewOutcomes.map(async (reviewOutcome) => ({
+        reviewOutcome,
+        sources: await listSefariaReferenceConnections({ reviewOutcome, limit: 10000 })
+      }))
+    ),
     getClassificationProgress()
   ]);
 
@@ -69,6 +76,9 @@ async function main() {
     writeJson("rabbi-sacks-articles.json", { articles }),
     writeJson("source-notes.json", { notes: notes.map(serializeSourceNote) }),
     writeJson("source-connections.json", { sources: sources.map(serializeSourceConnection) }),
+    ...reviewOutcomeSources.map(({ reviewOutcome, sources }) =>
+      writeJson(`source-connections-${reviewOutcome}.json`, { sources: sources.map(serializeSourceConnection) })
+    ),
     writeJson("classification-progress.json", { books: classificationProgress }),
     writeJson("metadata.json", { fullTextNotice: fullTextPublicStaticExportNotice })
   ]);
@@ -97,30 +107,13 @@ function serializeSourceConnection(source: Awaited<ReturnType<typeof listSefaria
       rank: connection.rank,
       latestReview: connection.aiReviews[0]
         ? {
-                id: connection.aiReviews[0].id,
-                provider: connection.aiReviews[0].provider,
-                model: connection.aiReviews[0].model,
-                promptVersion: connection.aiReviews[0].promptVersion,
                 status: connection.aiReviews[0].status,
                 verdict: connection.aiReviews[0].verdict,
                 score: connection.aiReviews[0].score,
-                issueTags: connection.aiReviews[0].issueTags,
-                rationale: connection.aiReviews[0].rationale,
-                suggestedAction: connection.aiReviews[0].suggestedAction,
-                suggestedRef: connection.aiReviews[0].suggestedRef,
-                createdAt: connection.aiReviews[0].createdAt,
-                completedAt: connection.aiReviews[0].completedAt
+                rationale: connection.aiReviews[0].rationale
               }
             : null,
-      generatedBy: connection.classificationRun
-        ? {
-                provider: connection.classificationRun.provider,
-                model: connection.classificationRun.model,
-                promptVersion: connection.classificationRun.promptVersion,
-                createdAt: connection.classificationRun.createdAt,
-                completedAt: connection.classificationRun.completedAt
-              }
-            : null,
+      generatedBy: null,
       rabbiSacksRef: connection.textUnit.ref,
       rabbiSacksUrl: `https://www.sefaria.org/${connection.textUnit.ref.replaceAll(" ", "_").replaceAll(":", ".")}?lang=bi`,
       text: connection.textUnit.text,
