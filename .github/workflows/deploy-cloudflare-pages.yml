@@ -34,6 +34,7 @@ jobs:
         run: npm --workspace @lsjs-sacks/frontend run build
         env:
           VITE_BASE_PATH: /
+          VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
 
       - name: Deploy to Cloudflare Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
