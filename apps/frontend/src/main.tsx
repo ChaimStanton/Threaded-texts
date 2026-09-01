@@ -26,6 +26,23 @@ const theme = createTheme({
   },
   shape: {
     borderRadius: 6
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          minHeight: 44
+        }
+      }
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: 44,
+          minHeight: 44
+        }
+      }
+    }
   }
 });
 
