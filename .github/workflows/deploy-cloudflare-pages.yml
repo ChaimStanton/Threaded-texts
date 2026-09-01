@@ -1,15 +1,17 @@
-name: Deploy Cloudflare Pages
+name: Build and deploy Cloudflare Pages
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches: [prod]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-pages
+  group: cloudflare-pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -32,9 +34,11 @@ jobs:
         run: npm --workspace @lsjs-sacks/frontend run build
         env:
           VITE_BASE_PATH: /
+          VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy apps/frontend/dist --project-name threaded-texts --branch prod --commit-hash "$GITHUB_SHA" --commit-message "$GITHUB_REF_NAME:$GITHUB_SHA"
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: npx wrangler pages deploy apps/frontend/dist --project-name threaded-texts --branch main --commit-hash "$GITHUB_SHA" --commit-message "$GITHUB_REF_NAME:$GITHUB_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

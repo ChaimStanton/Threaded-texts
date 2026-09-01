@@ -64,7 +64,7 @@ The classifier only accepts complements from `tanach`, `gemara`, `mishna`, `shul
 
 ## Cloudflare Pages deployment
 
-Production deploys are intended to run from the `prod` branch to a Cloudflare Pages project named `threaded-texts`.
+Pull requests targeting `main` run a production-equivalent frontend build. Pushes to `main` deploy that build to the Cloudflare Pages project named `threaded-texts`.
 
 Required GitHub repository secrets:
 
