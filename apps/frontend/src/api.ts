@@ -129,6 +129,9 @@ export type SourceConnectionPassage = {
   } | null;
   rabbiSacksRef: string;
   rabbiSacksUrl: string;
+  rabbiSacksAttribution?: string;
+  rabbiSacksLicense?: string;
+  rabbiSacksSourceUrl?: string;
   text: string;
   language: string;
   book: {

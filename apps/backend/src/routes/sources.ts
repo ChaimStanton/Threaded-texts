@@ -111,6 +111,9 @@ sourcesRouter.get("/connections", async (req, res, next) => {
             : null,
           rabbiSacksRef: connection.textUnit.ref,
           rabbiSacksUrl: `https://www.sefaria.org/${connection.textUnit.ref.replaceAll(" ", "_").replaceAll(":", ".")}?lang=bi`,
+          rabbiSacksAttribution: connection.textUnit.attribution,
+          rabbiSacksLicense: connection.textUnit.license,
+          rabbiSacksSourceUrl: connection.textUnit.sourceUrl,
           text: connection.textUnit.text,
           language: connection.textUnit.language,
           book: {

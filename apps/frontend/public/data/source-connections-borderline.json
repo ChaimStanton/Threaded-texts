@@ -1,6 +1,54 @@
 {
   "sources": [
     {
+      "id": "cmpt2hynx0049qeikgoueasvf",
+      "ref": "Pirkei Avot 4:1",
+      "normalizedRef": "Pirkei Avot 4:1",
+      "corpus": "mishna",
+      "book": "Pirkei Avot",
+      "category": "Nezikin",
+      "url": "https://www.sefaria.org/Pirkei_Avot.4.1",
+      "attribution": "Sefaria",
+      "license": null,
+      "connectionCount": 1,
+      "passages": [
+        {
+          "id": "cmpt38bd0004iqe0ksptn5oys",
+          "paragraphId": "sefaria:sefaria-arguments-for-the-sake-of-heaven:4:10:en",
+          "topic": "Learning from every person",
+          "rationale": "Ben Zoma’s definition of wisdom as learning from every person offers a classical point of entry into the value of stepping beyond one’s own enclosed community. It complements the paragraph by framing exposure to other minds as potentially enlarging, even when initially unsettling.",
+          "confidence": 0.8,
+          "rank": 4,
+          "latestReview": {
+            "status": "completed",
+            "verdict": "borderline",
+            "score": 2,
+            "rationale": "The Sefaria source text provides a related concept of learning from others, but its connection to the target paragraph's theme of navigating different environments and values is indirect and not strongly grounded."
+          },
+          "generatedBy": null,
+          "rabbiSacksRef": "Arguments for the Sake of Heaven, PART I; PROLOGUE, Chapter 1; A Family Portrait; Jews Today:10",
+          "rabbiSacksUrl": "https://www.sefaria.org/Arguments_for_the_Sake_of_Heaven,_PART_I;_PROLOGUE,_Chapter_1;_A_Family_Portrait;_Jews_Today.10?lang=bi",
+          "rabbiSacksAttribution": "Sefaria: Arguments for the Sake of Heaven, Maggid Books, 2023",
+          "rabbiSacksLicense": "CC-BY-NC",
+          "rabbiSacksSourceUrl": "https://korenpub.com/products/arguments-for-the-sake-of-heaven",
+          "text": "Ruth has a clearly ordered set of values. But it would be wrong to think that in arriving at them she has experienced no tensions. Her decision to go to a university after the seminary was frowned on by her teachers and many of her friends. In retrospect she can see their cause for concern, though she does not regret her choice. She found the college environment disturbingly at odds with the protective, monolithic atmosphere of her school and seminary. Its intellectual detachment, skepticism, and, at times, cynicism toward positions she herself held was at first unnerving and led to disturbed nights of conflict and doubt.",
+          "language": "en",
+          "book": {
+            "id": "cmpq07e3o0002qe6oevnucabl",
+            "slug": "sefaria-arguments-for-the-sake-of-heaven",
+            "title": "Arguments for the Sake of Heaven",
+            "category": "Jewish Thought / Modern / Rabbi Lord Jonathan Sacks"
+          },
+          "chapter": {
+            "id": "cmpq07f22000aqe6o2m6yzp2l",
+            "number": 4,
+            "ref": "Arguments for the Sake of Heaven, PART I; PROLOGUE, Chapter 1; A Family Portrait; Jews Today",
+            "title": "Chapter 1; A Family Portrait; Jews Today"
+          }
+        }
+      ]
+    },
+    {
       "id": "cmptoutct01m0qee4qg1hnj7h",
       "ref": "Pirkei Avot 5:3",
       "normalizedRef": "Pirkei Avot 5:3",
@@ -28,6 +76,9 @@
           "generatedBy": null,
           "rabbiSacksRef": "Not in God's Name; Confronting Religious Violence, II; Siblings, 6; The Half Brothers:36",
           "rabbiSacksUrl": "https://www.sefaria.org/Not_in_God's_Name;_Confronting_Religious_Violence,_II;_Siblings,_6;_The_Half_Brothers.36?lang=bi",
+          "rabbiSacksAttribution": "Sefaria: Lo beshem hael, trans. by Tsur Ehrlich, Maggid Book, 2016",
+          "rabbiSacksLicense": "CC-BY-NC",
+          "rabbiSacksSourceUrl": "https://korenpub.co.il/products/not-in-god-s-namepaperback",
           "text": "על משמעות הדבר נוכל לעמוד אם נבחין בהקבלה שבין פרק כא בספר בראשית, המספר על גירוש ישמעאל, ובין פרק כב, המספר בעקידת יצחק. בשני הסיפורים אברהם עומד בניסיון הכרוך באבדן פוטנציאלי של בן. ישמעאל ויצחק, שני הילדים, תופסים אך בקושי את המתרחש. בשני המקרים הם עומדים למות וניצָלים ברגע האחרון בזכות התערבות אלוהית: הופעת באר מים במקרהו של ישמעאל, ואיל הנאחז בסבך אצל יצחק. קווי הדמיון מבליטים את נקודות השוני.",
           "language": "he",
           "book": {

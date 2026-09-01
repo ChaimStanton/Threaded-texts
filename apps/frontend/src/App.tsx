@@ -1129,8 +1129,9 @@ function SourceDetail({
                         {passage.book.title}
                       </Typography>
                       <CopyrightInfoButton
-                        attribution="Sefaria"
-                        sourceUrl={passage.rabbiSacksUrl}
+                        attribution={passage.rabbiSacksAttribution}
+                        license={passage.rabbiSacksLicense}
+                        sourceUrl={passage.rabbiSacksSourceUrl || passage.rabbiSacksUrl}
                         sourceName={passage.book.title}
                       />
                     </Stack>
