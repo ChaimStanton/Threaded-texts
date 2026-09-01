@@ -2,6 +2,7 @@ import "@fontsource/noto-serif-hebrew/400.css";
 import "@fontsource/noto-serif-hebrew/600.css";
 import "@fontsource/noto-serif-hebrew/700.css";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CopyrightIcon from "@mui/icons-material/Copyright";
 import FormatSizeIcon from "@mui/icons-material/FormatSize";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -12,6 +13,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Container,
   FormControl,
   FormControlLabel,
@@ -242,14 +247,14 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 1.5, md: 4 }, px: { xs: 1.5, sm: 3 } }}>
         <Paper
           className="reader-no-print"
           elevation={0}
-          sx={{ mb: 3, p: { xs: 2, md: 2.5 }, bgcolor: "rgba(255,255,255,.72)", border: "1px solid rgba(36,50,46,.12)" }}
+          sx={{ mb: { xs: 2, md: 3 }, p: { xs: 1.5, md: 2.5 }, bgcolor: "rgba(255,255,255,.72)", border: "1px solid rgba(36,50,46,.12)", borderRadius: { xs: 2, sm: 1 } }}
         >
           <Stack direction={{ xs: "column", md: "row" }} spacing={2.5} alignItems={{ md: "center" }}>
-            <FormControl sx={{ flex: 1, minWidth: 260 }}>
+            <FormControl sx={{ flex: 1, minWidth: { xs: 0, md: 260 } }}>
               <InputLabel id="publication-book-label">Book</InputLabel>
               <Select
                 labelId="publication-book-label"
@@ -267,7 +272,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
             <FormControlLabel
               control={<Switch checked={showRefs} onChange={(event) => setShowRefs(event.target.checked)} />}
               label="Show exact refs"
-              sx={{ m: 0, whiteSpace: "nowrap" }}
+              sx={{ m: 0, whiteSpace: { xs: "normal", md: "nowrap" } }}
             />
             <ToggleButtonGroup
               exclusive
@@ -277,7 +282,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
                 if (value) setReadingMode(value);
               }}
               aria-label="Text language mode"
-              sx={{ flexShrink: 0 }}
+              sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", md: "auto" } }}
             >
               <ToggleButton value="bilingual" aria-label="Show Hebrew and English" disabled={!hasEnglish || !hasHebrew}>
                 Both
@@ -289,7 +294,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
                 Hebrew
               </ToggleButton>
             </ToggleButtonGroup>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: { md: 240 } }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: { xs: "100%", md: "auto" }, minWidth: { md: 240 } }}>
               <FormatSizeIcon color="action" />
               <Slider
                 aria-label="Text size"
@@ -312,8 +317,8 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
           </Stack>
         ) : book ? (
           <>
-            <Box component="header" dir="ltr" sx={{ textAlign: "center", py: { xs: 4, md: 7 }, px: 2 }}>
-              <Typography className="publication-book-text-en" component="h2" sx={{ fontSize: { xs: "2.5rem", md: "4.5rem" }, fontWeight: 700, lineHeight: 1.12, color: "#163f39" }}>
+            <Box component="header" dir="ltr" sx={{ textAlign: "center", py: { xs: 3, md: 7 }, px: { xs: 0.5, sm: 2 } }}>
+              <Typography className="publication-book-text-en" component="h2" sx={{ fontSize: { xs: "2rem", sm: "2.5rem", md: "4.5rem" }, fontWeight: 700, lineHeight: 1.12, color: "#163f39", overflowWrap: "anywhere" }}>
                 {book.title}
               </Typography>
               {book.heTitle ? (
@@ -330,23 +335,26 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
               {textAttributions.length > 0 ? (
                 <Stack spacing={0.5} alignItems="center" sx={{ mt: 2 }}>
                   {textAttributions.map((item) => (
-                    <Typography
-                      key={`${item.language}-${item.attribution}-${item.license}-${item.sourceUrl}`}
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ overflowWrap: "anywhere" }}
-                    >
-                      {item.language === "he" ? "Hebrew" : "English"}: {item.attribution}
-                      {item.license ? ` / Licence: ${item.license}` : ""}
-                      {item.sourceUrl ? (
-                        <>
-                          {" / "}
-                          <Box component="a" href={item.sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
-                            Source
-                          </Box>
-                        </>
-                      ) : null}
-                    </Typography>
+                    <Stack key={`${item.language}-${item.attribution}-${item.license}-${item.sourceUrl}`} direction="row" spacing={0.25} alignItems="center">
+                      <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                        {item.language === "he" ? "Hebrew" : "English"}: {item.attribution}
+                        {item.license ? ` / Licence: ${item.license}` : ""}
+                        {item.sourceUrl ? (
+                          <>
+                            {" / "}
+                            <Box component="a" href={item.sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+                              Source
+                            </Box>
+                          </>
+                        ) : null}
+                      </Typography>
+                      <PublicationCopyrightButton
+                        attribution={item.attribution}
+                        license={item.license}
+                        sourceUrl={item.sourceUrl}
+                        language={item.language}
+                      />
+                    </Stack>
                   ))}
                 </Stack>
               ) : null}
@@ -369,7 +377,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
               ) : null}
             </Box>
 
-            <FormControl className="reader-no-print" fullWidth sx={{ display: { xs: "flex", lg: "none" }, mb: 2 }}>
+            <FormControl className="reader-no-print" fullWidth sx={{ display: { xs: "flex", lg: "none" }, mb: 2, position: "sticky", top: 67, zIndex: 1, bgcolor: "rgba(244,239,227,.94)", pt: 1, pb: 1 }}>
               <InputLabel id="mobile-section-label">Section</InputLabel>
               <Select
                 labelId="mobile-section-label"
@@ -422,7 +430,7 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
                     data-chapter-number={chapter.number}
                     elevation={0}
                     dir={getChapterDirection(chapter, readingMode)}
-                    sx={{ scrollMarginTop: 96, bgcolor: "rgba(255,255,255,.84)", border: "1px solid rgba(36,50,46,.11)", boxShadow: "0 18px 60px rgba(60,46,29,.07)", p: { xs: 2.25, sm: 4, md: 6 } }}
+                    sx={{ scrollMarginTop: { xs: 130, md: 96 }, bgcolor: "rgba(255,255,255,.84)", border: "1px solid rgba(36,50,46,.11)", boxShadow: "0 18px 60px rgba(60,46,29,.07)", borderRadius: { xs: 2, sm: 1 }, p: { xs: 1.5, sm: 4, md: 6 } }}
                   >
                     <Box component="header" sx={{ mb: 4, pb: 2.5, borderBottom: "2px solid rgba(168,95,50,.22)" }}>
                       <Typography variant="overline" sx={{ color: "#a85f32", fontWeight: 800 }}>Section {chapter.number}</Typography>
@@ -455,6 +463,49 @@ export function HebrewBookReader({ onBack }: { onBack: () => void }) {
         ) : null}
       </Container>
     </Box>
+  );
+}
+
+function PublicationCopyrightButton({
+  attribution,
+  license,
+  sourceUrl,
+  language
+}: {
+  attribution: string;
+  license?: string;
+  sourceUrl?: string;
+  language: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const title = `Copyright information for the ${language === "he" ? "Hebrew" : "English"} edition`;
+
+  return (
+    <>
+      <Tooltip title="Copyright and licence information">
+        <IconButton aria-label={title} size="small" onClick={() => setOpen(true)} sx={{ color: "text.secondary" }}>
+          <CopyrightIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.25}>
+            <Typography variant="body2">This edition is displayed with the attribution and licence recorded for its source.</Typography>
+            <Typography variant="body2"><strong>Attribution:</strong> {attribution}</Typography>
+            <Typography variant="body2"><strong>Licence:</strong> {license || "Not provided"}</Typography>
+            {sourceUrl ? (
+              <Button href={sourceUrl} target="_blank" rel="noreferrer" variant="outlined" sx={{ alignSelf: "flex-start" }}>
+                View source and terms
+              </Button>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

@@ -1,4 +1,5 @@
 import FilterListIcon from "@mui/icons-material/FilterList";
+import CopyrightIcon from "@mui/icons-material/Copyright";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LinkIcon from "@mui/icons-material/Link";
@@ -552,14 +553,14 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
           }
         }}
       />
-      <AppBar className="no-print" position="static" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Toolbar sx={{ gap: 2 }}>
+      <AppBar className="no-print" position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Toolbar sx={{ gap: { xs: 1, sm: 2 }, px: { xs: 1.5, sm: 3 }, minHeight: { xs: 64, sm: 72 } }}>
           <LibraryBooksIcon color="primary" />
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography component="h1" variant="h6" sx={{ fontWeight: 700 }}>
               Threaded Texts
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
               Connected sources and study passages
             </Typography>
           </Box>
@@ -624,7 +625,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 1.5, sm: 3 }, px: { xs: 1.5, sm: 3 } }}>
         {error ? (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -650,10 +651,11 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
               width: { xs: "100%", lg: 420 },
               border: 1,
               borderColor: "divider",
-              alignSelf: "flex-start"
+              alignSelf: "flex-start",
+              borderRadius: { xs: 2, sm: 1 }
             }}
           >
-            <Box component="form" onSubmit={handleSearch} sx={{ p: 2 }}>
+            <Box component="form" onSubmit={handleSearch} sx={{ p: { xs: 1.5, sm: 2 } }}>
               <Stack spacing={2}>
                 <TextField
                   label="Search sources"
@@ -667,7 +669,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
                     )
                   }}
                 />
-                <Stack direction="row" spacing={1.5}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                   <FormControl fullWidth>
                     <InputLabel id="corpus-filter-label">Collection</InputLabel>
                     <Select
@@ -683,7 +685,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
                       ))}
                     </Select>
                   </FormControl>
-                  <Button type="submit" variant="contained" startIcon={<FilterListIcon />} sx={{ px: 2.5 }}>
+                  <Button type="submit" variant="contained" startIcon={<FilterListIcon />} sx={{ px: 2.5, width: { xs: "100%", sm: "auto" } }}>
                     Apply
                   </Button>
                 </Stack>
@@ -790,7 +792,7 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
               </Typography>
             </Box>
 
-            <List disablePadding sx={{ maxHeight: { lg: "calc(100vh - 270px)" }, overflow: "auto" }}>
+            <List disablePadding sx={{ maxHeight: { xs: "min(46vh, 420px)", lg: "calc(100vh - 270px)" }, overflow: "auto", overscrollBehavior: "contain" }}>
               {displayedSources.length === 0 ? (
                 <EmptyListState />
               ) : (
@@ -828,8 +830,8 @@ function SourceLibrary({ onOpenHebrewBooks }: { onOpenHebrewBooks: () => void })
                     />
                     <ListItemText
                       primary={
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 0.5, sm: 1 }} alignItems={{ xs: "flex-start", sm: "center" }} sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                             {source.ref}
                           </Typography>
                           <Chip label={corpusLabels[source.corpus]} size="small" />
@@ -1002,11 +1004,11 @@ function SourceDetail({
 
   return (
     <Stack spacing={3}>
-      <Paper elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 2, md: 3 } }}>
+      <Paper elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 1.5, sm: 2, md: 3 }, borderRadius: { xs: 2, sm: 1 } }}>
         <Stack spacing={2}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography component="h2" variant="h4" className="print-source-title" sx={{ fontWeight: 700 }}>
+              <Typography component="h2" variant="h4" className="print-source-title" sx={{ fontWeight: 700, fontSize: { xs: "1.75rem", sm: "2.125rem" }, overflowWrap: "anywhere" }}>
                 {source.ref}
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
@@ -1111,7 +1113,7 @@ function SourceDetail({
           </Paper>
         ) : (
           source.passages.map((passage) => (
-            <Paper key={passage.id} className="print-break-inside-avoid" elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 2, md: 2.5 } }}>
+            <Paper key={passage.id} className="print-break-inside-avoid" elevation={0} sx={{ border: 1, borderColor: "divider", p: { xs: 1.5, sm: 2, md: 2.5 }, borderRadius: { xs: 2, sm: 1 } }}>
               <Stack spacing={1.5}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-start" }}>
                   <Checkbox
@@ -1122,9 +1124,16 @@ function SourceDetail({
                     sx={{ alignSelf: { xs: "flex-start", md: "flex-start" }, p: 0.5 }}
                   />
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {passage.book.title}
-                    </Typography>
+                    <Stack direction="row" spacing={0.25} alignItems="center">
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {passage.book.title}
+                      </Typography>
+                      <CopyrightInfoButton
+                        attribution="Sefaria"
+                        sourceUrl={passage.rabbiSacksUrl}
+                        sourceName={passage.book.title}
+                      />
+                    </Stack>
                     <Typography variant="body2" color="text.secondary">
                       {passage.chapter?.title || passage.chapter?.ref || passage.rabbiSacksRef}
                     </Typography>
@@ -1251,6 +1260,7 @@ function SourceTextPanel({
             attribution={formatSefariaTextAttribution(sourceText, "en")}
             license={sourceText.license}
             sourceUrl={sourceText.versionSource || sourceUrl}
+            showCopyrightInfo
           />
           <SourceTextBlock value={sourceText.text} />
         </Stack>
@@ -1282,11 +1292,15 @@ function SourceTextBlock({ value }: { value?: string | string[] }) {
 function AttributionLine({
   attribution,
   license,
-  sourceUrl
+  sourceUrl,
+  sourceName,
+  showCopyrightInfo = false
 }: {
   attribution?: string;
   license?: string;
   sourceUrl?: string;
+  sourceName?: string;
+  showCopyrightInfo?: boolean;
 }) {
   const parts = [attribution, license ? `Licence: ${license}` : undefined].filter(Boolean);
 
@@ -1295,17 +1309,73 @@ function AttributionLine({
   }
 
   return (
-    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, overflowWrap: "anywhere" }}>
-      {parts.join(" / ")}
-      {sourceUrl ? (
-        <>
-          {parts.length > 0 ? " / " : ""}
-          <Box component="a" href={sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
-            Source
-          </Box>
-        </>
-      ) : null}
-    </Typography>
+    <Stack direction="row" spacing={0.25} alignItems="center" sx={{ mt: 0.5, minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+        {parts.join(" / ")}
+        {sourceUrl ? (
+          <>
+            {parts.length > 0 ? " / " : ""}
+            <Box component="a" href={sourceUrl} target="_blank" rel="noreferrer" sx={{ color: "inherit" }}>
+              Source
+            </Box>
+          </>
+        ) : null}
+      </Typography>
+      {showCopyrightInfo ? <CopyrightInfoButton attribution={attribution} license={license} sourceUrl={sourceUrl} sourceName={sourceName} /> : null}
+    </Stack>
+  );
+}
+
+function CopyrightInfoButton({
+  attribution,
+  license,
+  sourceUrl,
+  sourceName
+}: {
+  attribution?: string;
+  license?: string;
+  sourceUrl?: string;
+  sourceName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const title = sourceName ? `Copyright information for ${sourceName}` : "Copyright information";
+
+  return (
+    <>
+      <Tooltip title="Copyright and licence information">
+        <IconButton
+          aria-label={title}
+          size="small"
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen(true);
+          }}
+          sx={{ color: "text.secondary", flexShrink: 0 }}
+        >
+          <CopyrightIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.25}>
+            <Typography variant="body2">
+              This text is provided with the attribution and licence recorded for its source edition.
+            </Typography>
+            <Typography variant="body2"><strong>Attribution:</strong> {attribution || "Not provided"}</Typography>
+            <Typography variant="body2"><strong>Licence:</strong> {license || "Not provided"}</Typography>
+            {sourceUrl ? (
+              <Button href={sourceUrl} target="_blank" rel="noreferrer" variant="outlined" startIcon={<OpenInNewIcon />} sx={{ alignSelf: "flex-start" }}>
+                View source and terms
+              </Button>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
